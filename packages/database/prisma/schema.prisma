@@ -1,0 +1,240 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                String             @id @default(uuid())
+  name              String
+  status            String             @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  credentials       TenantCredential?
+  profile           StoreProfile?
+  settings          TenantSettings?
+  
+  items             Item[]
+  customers         Customer[]
+  invoices          Invoice[]
+  rewardLedgers     RewardLedger[]
+  creditAccounts    CreditAccount[]
+  expenses          Expense[]
+}
+
+model TenantCredential {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  mobileNumber      String   @unique
+  passwordHash      String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model StoreProfile {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  name              String
+  address           String?
+  storeMobile       String?
+  storeEmail        String?
+  storeWebsite      String?
+  state             String?
+  pincode           String?
+  placeOfSupply     String?
+  gstNumber         String?
+  logoUrl           String?
+  loginImageUrl     String?
+  invoiceFooterNote String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TenantSettings {
+  id                      String   @id @default(uuid())
+  tenantId                String   @unique
+  rewardConversionRate    Float    @default(0)
+  invoicePrefix           String   @default("INV-")
+  billPrefix              String   @default("BILL-")
+  invoiceCounter          Int      @default(0)
+  gstEnabled              Boolean  @default(true)
+  allowManualGstEdit      Boolean  @default(false)
+  thermalPrintEnabled     Boolean  @default(true)
+  thermalPaperWidth       String   @default("80mm")
+  thermalPrinterName      String?
+  thermalHeaderText       String?
+  autoPrintAfterCheckout  Boolean  @default(false)
+  showLogoOnBill          Boolean  @default(true)
+  showLogoOnInvoice       Boolean  @default(true)
+  compactBillMode         Boolean  @default(false)
+  rewardRedemptionEnabled Boolean  @default(true)
+  creditLimitDefault      Float    @default(5000)
+  overdueAlertDays        Int      @default(30)
+  enableCash              Boolean  @default(true)
+  enableCard              Boolean  @default(true)
+  enableUpi               Boolean  @default(true)
+  enableCredit            Boolean  @default(true)
+  enableSplit             Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  tenant                  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Item {
+  id             String   @id @default(uuid())
+  tenantId       String
+  name           String
+  sku            String?
+  barcode        String?  @db.VarChar(100)
+  unit           String
+  price          Float
+  gstRateDefault Float    @default(0)
+  hsnSac         String?
+  stockQty       Float    @default(0)
+  isActive       Boolean  @default(true)
+  imageUrl       String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceLines   InvoiceLine[]
+
+  @@unique([tenantId, barcode])
+  @@index([tenantId])
+}
+
+model Customer {
+  id                String   @id @default(uuid())
+  tenantId          String
+  mobileNumber      String
+  name              String?
+  totalRewardPoints Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices          Invoice[]
+  rewardLedger      RewardLedger[]
+  creditAccount     CreditAccount?
+
+  @@unique([tenantId, mobileNumber])
+  @@index([tenantId])
+}
+
+model Invoice {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  invoiceSequence      String
+  customerId           String?
+  subtotal             Float
+  taxTotal             Float
+  grandTotal           Float
+  paymentMode          String   // CASH, CARD, UPI, CREDIT, SPLIT
+  rewardPointsEarned   Float    @default(0)
+  rewardPointsRedeemed Float    @default(0)
+  status               String   @default("COMPLETED")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer             Customer? @relation(fields: [customerId], references: [id])
+  lines                InvoiceLine[]
+
+  @@unique([tenantId, invoiceSequence])
+  @@index([tenantId])
+}
+
+model InvoiceLine {
+  id                String   @id @default(uuid())
+  invoiceId         String
+  itemId            String
+  qty               Float
+  unitPrice         Float
+  taxableValue      Float
+  cgst              Float    @default(0)
+  sgst              Float    @default(0)
+  igst              Float    @default(0)
+  
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item              Item     @relation(fields: [itemId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model RewardLedger {
+  id                String   @id @default(uuid())
+  tenantId          String
+  customerId        String
+  points            Float
+  transactionType   String   // EARN, REDEEM, MANUAL
+  invoiceId         String?
+  createdAt         DateTime @default(now())
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([customerId])
+}
+
+model CreditAccount {
+  id                String   @id @default(uuid())
+  tenantId          String
+  customerId        String   @unique
+  creditLimit       Float    @default(0)
+  currentDue        Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions      CreditTransaction[]
+
+  @@index([tenantId])
+}
+
+model CreditTransaction {
+  id                String   @id @default(uuid())
+  accountId         String
+  amount            Float
+  type              String   // CHARGE, REPAYMENT
+  createdAt         DateTime @default(now())
+  
+  account           CreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+model Expense {
+  id                  String    @id @default(uuid())
+  tenantId            String
+  category            String
+  amount              Float
+  date                DateTime
+  notes               String?
+  paymentMode         String?   // CASH, CARD, UPI, BANK, OTHER
+  vendorName          String?
+  referenceNumber     String?
+  attachmentUrl       String?   @db.Text
+  attachmentFileName  String?
+  attachmentMimeType  String?
+  status              String    @default("ACTIVE") // ACTIVE, ARCHIVED
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@index([tenantId, status])
+}

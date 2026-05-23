@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Environment variables — NEVER commit secrets
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+out/
+
+# Build outputs
+build/
+dist/
+/generated/
+
+# Go build artifacts
+*.exe
+billing-engine.exe
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Prisma generated client
+packages/database/generated/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+.vercel
+coverage/
