@@ -92,6 +92,22 @@ function buildDocData(snap: CheckoutSnapshot): DocumentData {
   };
 }
 
+// ── Bill tab state ────────────────────────────────────────────────────────
+type BillState = {
+  cart: CartItem[];
+  linkedCustomer: Customer | null;
+  redeemPoints: boolean;
+  paymentMode: PaymentMode;
+  cashReceived: string;
+  cardRef: string;
+  upiRef: string;
+  splitAmounts: Record<string, string>;
+};
+
+function emptyBill(): BillState {
+  return { cart: [], linkedCustomer: null, redeemPoints: false, paymentMode: 'CASH', cashReceived: '', cardRef: '', upiRef: '', splitAmounts: { CASH: '', CARD: '', UPI: '' } };
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 const SPLIT_MODES: ('CASH' | 'CARD' | 'UPI')[] = ['CASH', 'CARD', 'UPI'];
 const PAYMENT_MODES: PaymentMode[] = ['CASH', 'CARD', 'UPI', 'CREDIT', 'SPLIT'];
@@ -215,10 +231,12 @@ function CartRow({
   onRemove,
 }: {
   item: CartItem;
-  onQtyChange: (id: string, delta: number) => void;
+  onQtyChange: (id: string, delta: number, isKg: boolean) => void;
   onRemove: (id: string) => void;
 }) {
   const atLimit = item.quantity >= item.stockQty;
+  const isKg = item.unit.toUpperCase() === 'KG';
+  const step = isKg ? 0.5 : 1;
   return (
     <div className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs group transition-colors
       ${atLimit ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}
@@ -240,14 +258,16 @@ function CartRow({
       {/* Qty stepper */}
       <div className="flex items-center rounded-lg bg-slate-100 shrink-0">
         <button
-          onClick={() => onQtyChange(item.id, -1)}
+          onClick={() => onQtyChange(item.id, -step, isKg)}
           className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-600 font-bold rounded-md transition-colors"
         >
           &#8722;
         </button>
-        <span className="w-7 text-center font-black text-slate-800">{item.quantity}</span>
+        <span className="w-8 text-center font-black text-slate-800">
+          {isKg ? item.quantity.toFixed(1) : item.quantity}
+        </span>
         <button
-          onClick={() => onQtyChange(item.id, 1)}
+          onClick={() => onQtyChange(item.id, step, isKg)}
           disabled={atLimit}
           className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-teal-600 font-bold rounded-md transition-colors disabled:opacity-30"
         >
@@ -281,6 +301,10 @@ export default function POSPage() {
   const [catalogItems, setCatalogItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Bill tabs state ──
+  const [activeBill, setActiveBill] = useState<0 | 1 | 2>(0);
+  const [bills, setBills] = useState<[BillState, BillState, BillState]>([emptyBill(), emptyBill(), emptyBill()]);
 
   // ── Cart state ──
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -436,10 +460,11 @@ export default function POSPage() {
     });
   }, []);
 
-  const updateQty = useCallback((id: string, delta: number) => {
+  const updateQty = useCallback((id: string, delta: number, isKg: boolean) => {
     setCart(prev => prev.map(item => {
       if (item.id !== id) return item;
-      const newQty = Math.min(item.stockQty, Math.max(1, item.quantity + delta));
+      const minQty = isKg ? 0.5 : 1;
+      const newQty = Math.min(item.stockQty, Math.max(minQty, Math.round((item.quantity + delta) * 100) / 100));
       return buildCartItem(item, newQty);
     }));
   }, []);
@@ -449,7 +474,8 @@ export default function POSPage() {
   }, []);
 
   const resetBill = useCallback(() => {
-    setCart([]);
+    const empty = emptyBill();
+    setCart(empty.cart);
     setLinkedCustomer(null);
     setRedeemPoints(false);
     setPaymentMode('CASH');
@@ -457,7 +483,33 @@ export default function POSPage() {
     setCardRef('');
     setUpiRef('');
     setSplitAmounts({ CASH: '', CARD: '', UPI: '' });
-  }, []);
+    setBills(prev => {
+      const next = [...prev] as [BillState, BillState, BillState];
+      next[activeBill] = empty;
+      return next;
+    });
+  }, [activeBill]);
+
+  const switchBill = useCallback((idx: 0 | 1 | 2) => {
+    if (idx === activeBill) return;
+    const saved: BillState = { cart, linkedCustomer, redeemPoints, paymentMode, cashReceived, cardRef, upiRef, splitAmounts };
+    setBills(prev => {
+      const next = [...prev] as [BillState, BillState, BillState];
+      next[activeBill] = saved;
+      return next;
+    });
+    const b = bills[idx];
+    setCart(b.cart);
+    setLinkedCustomer(b.linkedCustomer);
+    setRedeemPoints(b.redeemPoints);
+    setPaymentMode(b.paymentMode);
+    setCashReceived(b.cashReceived);
+    setCardRef(b.cardRef);
+    setUpiRef(b.upiRef);
+    setSplitAmounts(b.splitAmounts);
+    setActiveBill(idx);
+    setCustomerSearch('');
+  }, [activeBill, cart, linkedCustomer, redeemPoints, paymentMode, cashReceived, cardRef, upiRef, splitAmounts, bills]);
 
   // ── Checkout ──
   const handleCheckout = useCallback(async () => {
@@ -600,7 +652,7 @@ export default function POSPage() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Compact top header ── */}
-        <div className="h-10 flex items-center justify-between px-4 shrink-0" style={{borderBottom:'1px solid rgba(255,255,255,0.08)',background:'rgba(255,255,255,0.04)'}}>
+        <div className="h-10 flex items-center justify-between px-4 shrink-0" style={{borderBottom:'1px solid rgba(0,0,0,0.07)',background:'#F7F9FC'}}>
           <div className="flex items-center gap-3">
             <span className="text-sm font-black text-slate-800 tracking-tight">POS Billing</span>
             <span className="text-slate-300 text-xs">|</span>
@@ -612,23 +664,23 @@ export default function POSPage() {
           </div>
           <div className="flex items-center gap-2.5 text-[10px] text-slate-400 font-medium">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)'}}>F2</kbd>
+              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(67,97,238,0.08)',border:'1px solid rgba(67,97,238,0.18)'}}>F2</kbd>
               Search
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)'}}>F4</kbd>
+              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(67,97,238,0.08)',border:'1px solid rgba(67,97,238,0.18)'}}>F4</kbd>
               Customer
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)'}}>&#8593;&#8595;</kbd>
+              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(67,97,238,0.08)',border:'1px solid rgba(67,97,238,0.18)'}}>&#8593;&#8595;</kbd>
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)'}}>Enter</kbd>
+              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(67,97,238,0.08)',border:'1px solid rgba(67,97,238,0.18)'}}>Enter</kbd>
               Add item
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)'}}>F12</kbd>
+              <kbd className="px-1.5 py-0.5 rounded font-mono text-white/60" style={{background:'rgba(67,97,238,0.08)',border:'1px solid rgba(67,97,238,0.18)'}}>F12</kbd>
               Checkout
             </span>
           </div>
@@ -638,7 +690,7 @@ export default function POSPage() {
         <div className="flex-1 flex overflow-hidden">
 
           {/* ════ LEFT: Product Discovery ════ */}
-          <div className="w-[57%] flex flex-col" style={{borderRight:'1px solid rgba(255,255,255,0.08)'}}>
+          <div className="w-[57%] flex flex-col" style={{borderRight:'1px solid rgba(0,0,0,0.07)'}}>
 
             {/* Search bar */}
             <div className="p-3 border-b border-slate-100 shrink-0">
@@ -689,10 +741,40 @@ export default function POSPage() {
           </div>
 
           {/* ════ RIGHT: Bill Builder ════ */}
-          <div className="w-[43%] flex flex-col" style={{background:'rgba(255,255,255,0.03)'}}>
+          <div className="w-[43%] flex flex-col" style={{background:'#F7F9FC'}}>
+
+            {/* ── Bill tabs ── */}
+            <div className="flex gap-1.5 px-3 pt-2.5 pb-2 shrink-0" style={{borderBottom:'1px solid rgba(0,0,0,0.07)'}}>
+              {([0, 1, 2] as const).map(idx => {
+                const isActive = idx === activeBill;
+                const tabCart = idx === activeBill ? cart : bills[idx].cart;
+                const itemCount = tabCart.reduce((s, c) => s + c.quantity, 0);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => switchBill(idx)}
+                    className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all"
+                    style={isActive
+                      ? { background: 'rgba(67,97,238,0.12)', border: '1px solid rgba(67,97,238,0.25)', color: '#4361EE' }
+                      : { border: '1px solid rgba(0,0,0,0.08)', color: 'rgba(26,31,54,0.55)' }
+                    }
+                  >
+                    Bill {idx + 1}
+                    {itemCount > 0 && (
+                      <span
+                        className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black"
+                        style={{ background: isActive ? '#f97316' : 'rgba(0,0,0,0.05)', color: isActive ? '#fff' : 'rgba(26,31,54,0.55)' }}
+                      >
+                        {itemCount % 1 === 0 ? itemCount : itemCount.toFixed(1)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* ── Customer link section ── */}
-            <div className="px-3 pt-3 pb-2.5 shrink-0" style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+            <div className="px-3 pt-3 pb-2.5 shrink-0" style={{borderBottom:'1px solid rgba(0,0,0,0.07)'}}>
               {linkedCustomer ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start gap-2.5">
@@ -832,7 +914,7 @@ export default function POSPage() {
             {/* ══════════════════════════════════════════════════
                 Billing Summary + Payment + Checkout (sticky)
             ══════════════════════════════════════════════════ */}
-            <div className="shrink-0" style={{borderTop:'1px solid rgba(255,255,255,0.1)',background:'rgba(255,255,255,0.05)',boxShadow:'0 -6px 24px rgba(0,0,0,0.3)'}}>
+            <div className="shrink-0" style={{borderTop:'1px solid rgba(0,0,0,0.07)',background:'#FFFFFF',boxShadow:'0 -4px 16px rgba(0,0,0,0.06)'}}>
 
               {/* GST breakdown + totals */}
               {cart.length > 0 && (

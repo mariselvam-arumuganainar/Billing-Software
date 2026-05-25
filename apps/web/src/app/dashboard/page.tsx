@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { apiClient } from "@/lib/api";
 import Topbar from "@/components/Topbar";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type MetricSet      = { sales: number; gst: number; expenses: number; creditDue: number; rewardPoints: number };
 type TopItem        = { name: string; qty: number; rev: number };
-type ReportSummary  = { grossSales: number; netSales: number; taxCollected: number; expensesTotal: number; profitEstimate: number };
+type ReportSummary  = { grossSales: number; netSales: number; taxCollected: number; expensesTotal: number; profitEstimate: number; invoiceCount?: number };
 type Invoice        = { id: string; invoiceSequence: string; grandTotal: number; paymentMode: "CASH"|"CARD"|"UPI"|"CREDIT"|"SPLIT"; status: string; createdAt: string; customer?: { name?: string; mobileNumber?: string } };
 type LowStockItem   = { id: string; name: string; stockQty: number; unit: string; sku?: string };
 type PayEntry       = { key: string; value: number; pct: number; color: string };
+type ChartPoint     = { label: string; sales: number; expenses: number; net: number };
 
 // ── Semantic colour tokens ─────────────────────────────────────────────────
 const C = {
-  sales:   { from: "#f97316", to: "#fbbf24", glow: "rgba(249,115,22,0.25)",  text: "#fb923c" },
-  profit:  { from: "#10b981", to: "#34d399", glow: "rgba(16,185,129,0.25)",  text: "#34d399" },
-  gst:     { from: "#0ea5e9", to: "#38bdf8", glow: "rgba(14,165,233,0.25)",  text: "#38bdf8" },
-  credit:  { from: "#f43f5e", to: "#fb7185", glow: "rgba(244,63,94,0.25)",   text: "#fb7185" },
+  sales:    { from: "#f97316", to: "#fbbf24", glow: "rgba(249,115,22,0.25)",  text: "#fb923c" },
+  profit:   { from: "#10b981", to: "#34d399", glow: "rgba(16,185,129,0.25)",  text: "#34d399" },
+  gst:      { from: "#0ea5e9", to: "#38bdf8", glow: "rgba(14,165,233,0.25)",  text: "#38bdf8" },
+  expenses: { from: "#f59e0b", to: "#fbbf24", glow: "rgba(245,158,11,0.25)",  text: "#fbbf24" },
+  credit:   { from: "#f43f5e", to: "#fb7185", glow: "rgba(244,63,94,0.25)",   text: "#fb7185" },
 };
 
 const MODE_COLOR: Record<string, string> = {
@@ -46,50 +48,35 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-// ── Monthly computation ───────────────────────────────────────────────────
-function computeMonthly(invoices: Invoice[]) {
-  const now = new Date();
-  return [...Array(6)].map((_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const label = d.toLocaleDateString("en-IN", { month: "short" });
-    const isCurrentMonth = d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    const sales = invoices
-      .filter(inv => {
-        const id = new Date(inv.createdAt);
-        return id.getFullYear() === d.getFullYear() && id.getMonth() === d.getMonth();
-      })
-      .reduce((s, inv) => s + inv.grandTotal, 0);
-    return { label, sales, isCurrent: isCurrentMonth };
-  });
-}
-
-// ── SVG Bar Chart ─────────────────────────────────────────────────────────
-function BarChart({ data }: { data: { label: string; sales: number; isCurrent: boolean }[] }) {
+// ── SVG Dual Bar Chart ────────────────────────────────────────────────────
+function BarChart({ data }: { data: ChartPoint[] }) {
   const W = 560; const H = 180; const pX = 46; const pY = 24;
   const innerW = W - pX * 2; const innerH = H - pY;
-  const maxVal = Math.max(...data.map(d => d.sales), 1);
-  const bW = Math.floor((innerW / data.length) * 0.45);
+  const maxVal = Math.max(...data.flatMap(d => [d.sales, d.expenses]), 1);
   const step = innerW / data.length;
+  // Each group has 2 bars with a small gap between them
+  const bW = Math.floor(step * 0.28);
+  const gap = Math.floor(step * 0.05);
 
-  // 4 grid lines at 25%, 50%, 75%, 100%
   const grids = [0.25, 0.5, 0.75, 1].map(f => ({
     y: pY + innerH - f * innerH,
     label: fmtShort(maxVal * f),
   }));
 
-  function getBarX(i: number) { return pX + i * step + (step - bW) / 2; }
-  function getBarH(v: number) { return Math.max((v / maxVal) * innerH, 3); }
+  function getSalesX(i: number) { return pX + i * step + (step - bW * 2 - gap) / 2; }
+  function getExpX(i: number)   { return getSalesX(i) + bW + gap; }
+  function barH(v: number)      { return Math.max((v / maxVal) * innerH, v > 0 ? 3 : 0); }
+
+  const lastIdx = data.length - 1;
 
   return (
     <svg viewBox={`0 0 ${W} ${H + 22}`} className="w-full h-[200px]" style={{ overflow: "visible" }}>
       <defs>
         {data.map((_, i) => (
-          <linearGradient key={i} id={`bg-${i}`} x1="0" y1="0" x2="0" y2="1">
-            {data[i].isCurrent
-              ? <><stop offset="0%" stopColor="#f97316" /><stop offset="100%" stopColor="#ef4444" /></>
-              : data[i].sales === maxVal && !data[i].isCurrent
-                ? <><stop offset="0%" stopColor="#a78bfa" /><stop offset="100%" stopColor="#7c3aed" /></>
-                : <><stop offset="0%" stopColor="#6366f1" stopOpacity="0.85" /><stop offset="100%" stopColor="#4338ca" stopOpacity="0.6" /></>
+          <linearGradient key={`s-${i}`} id={`s-${i}`} x1="0" y1="0" x2="0" y2="1">
+            {i === lastIdx
+              ? <><stop offset="0%" stopColor="#f97316"/><stop offset="100%" stopColor="#ef4444"/></>
+              : <><stop offset="0%" stopColor="#4361EE" stopOpacity="0.85"/><stop offset="100%" stopColor="#3451D1" stopOpacity="0.55"/></>
             }
           </linearGradient>
         ))}
@@ -98,45 +85,43 @@ function BarChart({ data }: { data: { label: string; sales: number; isCurrent: b
       {/* Grid */}
       {grids.map((g, i) => (
         <g key={i}>
-          <line x1={pX} y1={g.y} x2={W - pX} y2={g.y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-          <text x={pX - 6} y={g.y + 3.5} fill="rgba(255,255,255,0.22)" fontSize="8" textAnchor="end">{g.label}</text>
+          <line x1={pX} y1={g.y} x2={W - pX} y2={g.y} stroke="rgba(0,0,0,0.06)" strokeWidth="1" strokeDasharray="4 4" />
+          <text x={pX - 6} y={g.y + 3.5} fill="rgba(26,31,54,0.38)" fontSize="8" textAnchor="end">{g.label}</text>
         </g>
       ))}
-
-      {/* Baseline */}
-      <line x1={pX} y1={pY + innerH} x2={W - pX} y2={pY + innerH} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+      <line x1={pX} y1={pY + innerH} x2={W - pX} y2={pY + innerH} stroke="rgba(0,0,0,0.08)" strokeWidth="1" />
 
       {/* Bars */}
       {data.map((d, i) => {
-        const bH = getBarH(d.sales);
-        const x = getBarX(i);
-        const y = pY + innerH - bH;
+        const sx = getSalesX(i); const ex = getExpX(i);
+        const sh = barH(d.sales);  const eh = barH(d.expenses);
+        const sy = pY + innerH - sh; const ey = pY + innerH - eh;
+        const isCur = i === lastIdx;
         return (
           <g key={d.label}>
-            {/* Glow halo for current / peak */}
-            {(d.isCurrent || d.sales === maxVal) && d.sales > 0 && (
-              <rect x={x - 3} y={y - 3} width={bW + 6} height={bH + 3} rx="8"
-                fill={d.isCurrent ? "rgba(249,115,22,0.18)" : "rgba(139,92,246,0.2)"} />
-            )}
-            {/* Bar */}
-            <rect x={x} y={y} width={bW} height={bH} rx="5" fill={`url(#bg-${i})`} />
-            {/* Value label */}
-            {d.sales > 0 && (
-              <text x={x + bW / 2} y={y - 7} fill={d.isCurrent ? "#fbbf24" : "rgba(255,255,255,0.55)"}
-                fontSize="8" textAnchor="middle" fontWeight="700">
+            {/* Sales bar */}
+            {sh > 0 && <rect x={sx} y={sy} width={bW} height={sh} rx="4" fill={`url(#s-${i})`} />}
+            {/* Expense bar */}
+            {eh > 0 && <rect x={ex} y={ey} width={bW} height={eh} rx="4" fill="rgba(244,63,94,0.50)" />}
+            {/* Sales value (current month only to avoid clutter) */}
+            {isCur && d.sales > 0 && (
+              <text x={sx + bW / 2} y={sy - 5} fill="#f97316" fontSize="7.5" textAnchor="middle" fontWeight="700">
                 {fmtShort(d.sales)}
               </text>
             )}
+            {/* Expenses value */}
+            {isCur && d.expenses > 0 && (
+              <text x={ex + bW / 2} y={ey - 5} fill="#f43f5e" fontSize="7.5" textAnchor="middle" fontWeight="700">
+                {fmtShort(d.expenses)}
+              </text>
+            )}
             {/* Month label */}
-            <text x={x + bW / 2} y={H + 16}
-              fill={d.isCurrent ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)"}
-              fontSize="9" textAnchor="middle" fontWeight={d.isCurrent ? "700" : "400"}>
+            <text x={sx + bW + gap / 2} y={H + 16}
+              fill={isCur ? "rgba(26,31,54,0.85)" : "rgba(26,31,54,0.38)"}
+              fontSize="9" textAnchor="middle" fontWeight={isCur ? "700" : "400"}>
               {d.label}
             </text>
-            {/* Current dot */}
-            {d.isCurrent && (
-              <circle cx={x + bW / 2} cy={H + 21} r="2" fill="#f97316" />
-            )}
+            {isCur && <circle cx={sx + bW + gap / 2} cy={H + 21} r="2" fill="#f97316" />}
           </g>
         );
       })}
@@ -173,7 +158,7 @@ function DonutChart({ entries, total }: { entries: PayEntry[]; total: number }) 
   return (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} className="shrink-0">
       {segs.length === 0
-        ? <circle cx={cx} cy={cy} r={R} fill="rgba(255,255,255,0.05)" />
+        ? <circle cx={cx} cy={cy} r={R} fill="rgba(0,0,0,0.05)" />
         : segs.map((seg, i) => (
           <path key={i} d={arcPath(seg.start, seg.end)} fill={seg.color} opacity="0.88" />
         ))
@@ -181,10 +166,10 @@ function DonutChart({ entries, total }: { entries: PayEntry[]; total: number }) 
       {/* Inner fill — uses CSS variable so it matches the active theme background */}
       <circle cx={cx} cy={cy} r={r - 1} style={{ fill: 'var(--theme-donut-inner)' }} />
       {/* Center: total ₹ */}
-      <text x={cx} y={cy - 9} textAnchor="middle" fill="white" fontSize="12" fontWeight="700">
+      <text x={cx} y={cy - 9} textAnchor="middle" fill="#1A1F36" fontSize="12" fontWeight="700">
         {fmtShort(total)}
       </text>
-      <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="7.5" fontWeight="600" letterSpacing="1">
+      <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(26,31,54,0.40)" fontSize="7.5" fontWeight="600" letterSpacing="1">
         COLLECTED
       </text>
     </svg>
@@ -203,7 +188,7 @@ function KpiCard({
       className="rounded-2xl p-5 relative overflow-hidden flex flex-col gap-3"
       style={hero
         ? { background: `linear-gradient(135deg, ${colorFrom} 0%, ${colorTo} 100%)`, boxShadow: `0 8px 32px ${glow}` }
-        : { background: `linear-gradient(135deg, ${colorFrom}12 0%, ${colorTo}08 100%)`, border: `1px solid ${colorFrom}28`, boxShadow: `0 4px 20px ${glow}` }
+        : { background: "#FFFFFF", border: `1px solid rgba(0,0,0,0.07)`, borderLeft: `4px solid ${colorFrom}`, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }
       }
     >
       {/* Icon badge */}
@@ -211,18 +196,18 @@ function KpiCard({
         className="h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0"
         style={hero
           ? { background: "rgba(255,255,255,0.22)", color: "#fff" }
-          : { background: `${colorFrom}22`, color: textColor }
+          : { background: `${colorFrom}18`, color: textColor }
         }
       >
         {icon}
       </div>
 
       <div>
-        <p className={`text-xs font-semibold mb-0.5 ${hero ? "text-white/75" : "text-white/50"}`}>{label}</p>
-        <p className={`text-2xl font-black tracking-tight leading-none ${hero ? "text-white" : "text-white"}`}>
+        <p className="text-xs font-semibold mb-0.5" style={hero ? { color: "rgba(255,255,255,0.75)" } : { color: "#5A6882" }}>{label}</p>
+        <p className="text-2xl font-black tracking-tight leading-none" style={hero ? { color: "#fff" } : { color: "#1A1F36" }}>
           {value}
         </p>
-        <p className={`text-[11px] mt-1.5 ${hero ? "text-white/65" : "text-white/35"}`}>{sub}</p>
+        <p className="text-[11px] mt-1.5" style={hero ? { color: "rgba(255,255,255,0.65)" } : { color: "#8FA3BF" }}>{sub}</p>
       </div>
 
       {/* Decorative circle for hero */}
@@ -241,13 +226,13 @@ function StatPill({ label, value, color }: { label: string; value: string; color
   return (
     <div
       className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-      style={{ background: `${color}0e`, border: `1px solid ${color}22` }}
+      style={{ background: "#FFFFFF", border: `1px solid ${color}30`, boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
-        <span className="text-xs text-white/55 truncate">{label}</span>
+        <span className="text-xs truncate" style={{ color: "#5A6882" }}>{label}</span>
       </div>
-      <span className="text-sm font-black text-white shrink-0">{value}</span>
+      <span className="text-sm font-black shrink-0" style={{ color: "#1A1F36" }}>{value}</span>
     </div>
   );
 }
@@ -262,40 +247,49 @@ export default function Dashboard() {
   const [allInvoices,   setAllInvoices]   = useState<Invoice[]>([]);
   const [lowStock,      setLowStock]      = useState<LowStockItem[]>([]);
   const [loading,       setLoading]       = useState(true);
+  const [chartData,     setChartData]     = useState<ChartPoint[]>([]);
+  const [startDate,     setStartDate]     = useState(() => new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10));
+  const [endDate,       setEndDate]       = useState(() => new Date().toISOString().slice(0, 10));
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [dashRes, sumRes, invRes, itemsRes] = await Promise.allSettled([
-          apiClient.get("/reports/dashboard"),
-          apiClient.get("/reports/summary"),
-          apiClient.get("/reports/invoices"),
-          apiClient.get("/items"),
-        ]);
-        if (dashRes.status === "fulfilled") {
-          if (dashRes.value.data?.metrics)  setMetrics(dashRes.value.data.metrics);
-          if (dashRes.value.data?.topItems) setTopItems(dashRes.value.data.topItems);
-        }
-        if (sumRes.status === "fulfilled") {
-          if (sumRes.value.data?.summary)      setSummary(sumRes.value.data.summary);
-          if (sumRes.value.data?.paymentSplit) setPaymentSplit(sumRes.value.data.paymentSplit);
-        }
-        if (invRes.status === "fulfilled") {
-          const list: Invoice[] = invRes.value.data?.invoices ?? [];
-          setAllInvoices(list);
-          setRecentInvoices(list.slice(0, 6));
-        }
-        if (itemsRes.status === "fulfilled") {
-          setLowStock(
-            (itemsRes.value.data?.items ?? [])
-              .filter((i: LowStockItem) => Number(i.stockQty) <= 10)
-              .sort((a: LowStockItem, b: LowStockItem) => a.stockQty - b.stockQty)
-              .slice(0, 6),
-          );
-        }
-      } finally { setLoading(false); }
-    })();
+  const fetchData = useCallback(async (start: string, end: string) => {
+    setLoading(true);
+    try {
+      const q = `?startDate=${start}&endDate=${end}`;
+      const [dashRes, sumRes, invRes, itemsRes, chartRes] = await Promise.allSettled([
+        apiClient.get(`/reports/dashboard${q}`),
+        apiClient.get(`/reports/summary${q}`),
+        apiClient.get(`/reports/invoices${q}`),
+        apiClient.get("/items"),
+        apiClient.get(`/reports/chart${q}`),
+      ]);
+      if (dashRes.status === "fulfilled") {
+        if (dashRes.value.data?.metrics)  setMetrics(dashRes.value.data.metrics);
+        if (dashRes.value.data?.topItems) setTopItems(dashRes.value.data.topItems);
+      }
+      if (sumRes.status === "fulfilled") {
+        if (sumRes.value.data?.summary)      setSummary(sumRes.value.data.summary);
+        if (sumRes.value.data?.paymentSplit) setPaymentSplit(sumRes.value.data.paymentSplit);
+      }
+      if (invRes.status === "fulfilled") {
+        const list: Invoice[] = invRes.value.data?.invoices ?? [];
+        setAllInvoices(list);
+        setRecentInvoices(list.slice(0, 6));
+      }
+      if (itemsRes.status === "fulfilled") {
+        setLowStock(
+          (itemsRes.value.data?.items ?? [])
+            .filter((i: LowStockItem) => Number(i.stockQty) <= 10)
+            .sort((a: LowStockItem, b: LowStockItem) => a.stockQty - b.stockQty)
+            .slice(0, 6),
+        );
+      }
+      if (chartRes.status === "fulfilled") {
+        setChartData(chartRes.value.data?.points ?? []);
+      }
+    } finally { setLoading(false); }
   }, []);
+
+  useEffect(() => { fetchData(startDate, endDate); }, [fetchData]);
 
   // Derived values
   const grossSales      = summary.grossSales   || metrics.sales    || 0;
@@ -305,9 +299,7 @@ export default function Dashboard() {
   const creditDue       = metrics.creditDue  || 0;
   const rewardPoints    = metrics.rewardPoints || 0;
   const itemsSold       = topItems.reduce((s, i) => s + Number(i.qty || 0), 0);
-  const totalInvoices   = allInvoices.length;
-
-  const monthly     = useMemo(() => computeMonthly(allInvoices), [allInvoices]);
+  const totalInvoices   = summary.invoiceCount ?? allInvoices.length;
 
   // Payment entries — semantic colors, only show modes with data
   const payEntries: PayEntry[] = useMemo(() => {
@@ -330,7 +322,7 @@ export default function Dashboard() {
           <div className="text-center space-y-3">
             <div className="h-10 w-10 rounded-full border-2 border-t-transparent animate-spin mx-auto"
               style={{ borderColor: 'var(--theme-spinner-border) transparent transparent transparent' }} />
-            <p className="text-white/40 text-sm">Loading dashboard…</p>
+            <p className="text-sm" style={{ color: "#8FA3BF" }}>Loading dashboard…</p>
           </div>
         </div>
       </div>
@@ -345,27 +337,47 @@ export default function Dashboard() {
         <div className="max-w-[1440px] mx-auto space-y-5">
 
           {/* ── Page heading ── */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-xl font-black text-white tracking-tight">Store Overview</h1>
-              <p className="text-white/40 text-xs mt-0.5">
+              <h1 className="text-xl font-black tracking-tight" style={{ color: "#1A1F36" }}>Store Overview</h1>
+              <p className="text-xs mt-0.5" style={{ color: "#8FA3BF" }}>
                 {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
             </div>
-            <a
-              href="/pos"
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
-              style={{ background: "linear-gradient(135deg, #f97316, #ef4444)", boxShadow: "0 4px 16px rgba(249,115,22,0.35)" }}
-            >
-              + New Sale
-            </a>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 rounded-xl px-3 py-1.5" style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.09)", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                <label className="text-xs shrink-0" style={{ color: "#8FA3BF" }}>From</label>
+                <input type="date" value={startDate} max={endDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="bg-transparent text-xs outline-none cursor-pointer" style={{ color: "#1A1F36" }} />
+                <span className="text-xs" style={{ color: "#B8C6D6" }}>–</span>
+                <label className="text-xs shrink-0" style={{ color: "#8FA3BF" }}>To</label>
+                <input type="date" value={endDate} min={startDate} max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="bg-transparent text-xs outline-none cursor-pointer" style={{ color: "#1A1F36" }} />
+                <button onClick={() => fetchData(startDate, endDate)}
+                  className="ml-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white transition-all active:scale-95"
+                  style={{ background: "linear-gradient(135deg,#4361EE,#3451D1)" }}>
+                  Apply
+                </button>
+              </div>
+              <a href="/pos"
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+                style={{ background: "linear-gradient(135deg, #4361EE, #3451D1)", boxShadow: "0 4px 16px rgba(67,97,238,0.30)" }}>
+                + New Sale
+              </a>
+            </div>
           </div>
 
-          {/* ── KPI cards — 4 columns, each colour-coded ── */}
-          <section className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          {/* ── KPI cards — 5 columns, each colour-coded ── */}
+          <section className="grid grid-cols-2 xl:grid-cols-5 gap-4">
             <KpiCard
               label="Gross Sales" value={fmtFull(grossSales)} sub={`${totalInvoices} invoices total`}
               icon="₹" colorFrom={C.sales.from} colorTo={C.sales.to} glow={C.sales.glow} textColor={C.sales.text} hero
+            />
+            <KpiCard
+              label="Total Expenses" value={fmtFull(expenseTotal)} sub="Operating costs"
+              icon="↓" colorFrom={C.expenses.from} colorTo={C.expenses.to} glow={C.expenses.glow} textColor={C.expenses.text}
             />
             <KpiCard
               label="Net Revenue" value={fmtFull(netRevenue)} sub="After expenses & GST"
@@ -395,31 +407,31 @@ export default function Dashboard() {
             {/* Monthly sales chart */}
             <div
               className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Monthly Revenue</h3>
-                  <p className="text-[11px] text-white/40 mt-0.5">Last 6 months — current month highlighted</p>
+                  <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>Monthly Revenue</h3>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#8FA3BF" }}>Last 6 months — current month highlighted</p>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-white/40">
+                <div className="flex items-center gap-3 text-[10px]" style={{ color: "#8FA3BF" }}>
                   <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-sm inline-block" style={{ background: "linear-gradient(#f97316,#ef4444)" }} />
-                    This month
+                    Sales
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-sm inline-block" style={{ background: "linear-gradient(#6366f1,#4338ca)" }} />
-                    Past
+                    <span className="h-2 w-2 rounded-sm inline-block" style={{ background: "rgba(244,63,94,0.50)" }} />
+                    Expenses
                   </span>
                 </div>
               </div>
 
-              <BarChart data={monthly} />
+              <BarChart data={chartData} />
 
               {/* Summary strip */}
               <div
                 className="mt-3 pt-3 grid grid-cols-3 gap-2"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
               >
                 {[
                   { label: "Gross Sales",  value: fmtFull(grossSales),   color: C.sales.text },
@@ -427,7 +439,7 @@ export default function Dashboard() {
                   { label: "Net Revenue",  value: fmtFull(netRevenue),   color: C.profit.text },
                 ].map(s => (
                   <div key={s.label} className="text-center">
-                    <p className="text-[10px] text-white/35 mb-0.5">{s.label}</p>
+                    <p className="text-[10px] mb-0.5" style={{ color: "#8FA3BF" }}>{s.label}</p>
                     <p className="text-xs font-black" style={{ color: s.color }}>{s.value}</p>
                   </div>
                 ))}
@@ -437,15 +449,15 @@ export default function Dashboard() {
             {/* Payment breakdown donut */}
             <div
               className="rounded-2xl p-5 flex flex-col"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}
             >
               <div className="mb-4">
-                <h3 className="text-sm font-bold text-white">Payment Mix</h3>
-                <p className="text-[11px] text-white/40 mt-0.5">By collection value</p>
+                <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>Payment Mix</h3>
+                <p className="text-[11px] mt-0.5" style={{ color: "#8FA3BF" }}>By collection value</p>
               </div>
 
               {payEntries.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-white/25 text-xs">No payment data</div>
+                <div className="flex-1 flex items-center justify-center text-xs" style={{ color: "#B8C6D6" }}>No payment data</div>
               ) : (
                 <>
                   <div className="flex justify-center mb-4">
@@ -458,16 +470,16 @@ export default function Dashboard() {
                         <div className="flex items-center justify-between text-[11px]">
                           <div className="flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full shrink-0" style={{ background: e.color }} />
-                            <span className="text-white/65 font-medium">{e.key}</span>
+                            <span className="font-medium" style={{ color: "#5A6882" }}>{e.key}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-white/40 text-[10px]">{fmtShort(e.value)}</span>
-                            <span className="font-bold text-white w-8 text-right">{e.pct.toFixed(0)}%</span>
+                            <span className="text-[10px]" style={{ color: "#8FA3BF" }}>{fmtShort(e.value)}</span>
+                            <span className="font-bold w-8 text-right" style={{ color: "#1A1F36" }}>{e.pct.toFixed(0)}%</span>
                           </div>
                         </div>
                         {/* Mini progress bar */}
-                        <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${e.pct}%`, background: e.color, opacity: 0.75 }} />
+                        <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.06)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${e.pct}%`, background: e.color, opacity: 0.80 }} />
                         </div>
                       </div>
                     ))}
@@ -483,19 +495,19 @@ export default function Dashboard() {
             {/* Recent invoices */}
             <div
               className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}
             >
               {/* Header */}
               <div
                 className="flex items-center justify-between px-5 py-3.5"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}
               >
                 <div>
-                  <h3 className="text-sm font-bold text-white">Recent Invoices</h3>
-                  <p className="text-[11px] text-white/35 mt-0.5">Latest billing records</p>
+                  <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>Recent Invoices</h3>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#8FA3BF" }}>Latest billing records</p>
                 </div>
                 <a href="/invoices" className="text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors"
-                  style={{ color: "#a78bfa", background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                  style={{ color: "#4361EE", background: "rgba(67,97,238,0.08)", border: "1px solid rgba(67,97,238,0.18)" }}>
                   View all →
                 </a>
               </div>
@@ -504,9 +516,9 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)", background: "#F7F9FC" }}>
                       {["Invoice", "Customer", "Date & Time", "Amount", "Mode"].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-white/25">
+                        <th key={h} className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest" style={{ color: "#8FA3BF" }}>
                           {h}
                         </th>
                       ))}
@@ -515,7 +527,7 @@ export default function Dashboard() {
                   <tbody>
                     {recentInvoices.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-12 text-center text-white/25 text-xs">
+                        <td colSpan={5} className="px-4 py-12 text-center text-xs" style={{ color: "#B8C6D6" }}>
                           No invoices yet. Start billing from POS.
                         </td>
                       </tr>
@@ -525,36 +537,36 @@ export default function Dashboard() {
                         <tr
                           key={inv.id}
                           className="group cursor-default"
-                          style={i < recentInvoices.length - 1 ? { borderBottom: "1px solid rgba(255,255,255,0.04)" } : undefined}
-                          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                          style={i < recentInvoices.length - 1 ? { borderBottom: "1px solid rgba(0,0,0,0.05)" } : undefined}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F7F9FC")}
                           onMouseLeave={e => (e.currentTarget.style.background = "")}
                         >
                           {/* Invoice no */}
                           <td className="px-4 py-2.5">
-                            <span className="text-xs font-bold" style={{ color: "#a78bfa" }}>#{inv.invoiceSequence}</span>
+                            <span className="text-xs font-bold" style={{ color: "#4361EE" }}>#{inv.invoiceSequence}</span>
                           </td>
                           {/* Customer */}
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-2">
                               <div
                                 className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
-                                style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}
+                                style={{ background: "rgba(67,97,238,0.10)", color: "#4361EE" }}
                               >
                                 {(inv.customer?.name || "W")[0].toUpperCase()}
                               </div>
-                              <span className="text-xs text-white/65 truncate max-w-[110px]">
+                              <span className="text-xs truncate max-w-[110px]" style={{ color: "#5A6882" }}>
                                 {inv.customer?.name || inv.customer?.mobileNumber || "Walk-in"}
                               </span>
                             </div>
                           </td>
                           {/* Date */}
                           <td className="px-4 py-2.5">
-                            <p className="text-xs text-white/50">{fmtDate(inv.createdAt)}</p>
-                            <p className="text-[10px] text-white/25">{fmtTime(inv.createdAt)}</p>
+                            <p className="text-xs" style={{ color: "#5A6882" }}>{fmtDate(inv.createdAt)}</p>
+                            <p className="text-[10px]" style={{ color: "#8FA3BF" }}>{fmtTime(inv.createdAt)}</p>
                           </td>
                           {/* Amount */}
                           <td className="px-4 py-2.5">
-                            <span className="text-xs font-black text-white">{fmtFull(inv.grandTotal)}</span>
+                            <span className="text-xs font-black" style={{ color: "#1A1F36" }}>{fmtFull(inv.grandTotal)}</span>
                           </td>
                           {/* Mode badge */}
                           <td className="px-4 py-2.5">
@@ -579,10 +591,10 @@ export default function Dashboard() {
               {/* Stock Alert */}
               <div
                 className="rounded-2xl p-4"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-white">Stock Alert</h3>
+                  <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>Stock Alert</h3>
                   {lowStock.length > 0 && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{ background: "rgba(244,63,94,0.15)", color: "#fb7185", border: "1px solid rgba(244,63,94,0.25)" }}>
@@ -596,7 +608,7 @@ export default function Dashboard() {
                     <div className="h-8 w-8 rounded-full mx-auto mb-2 flex items-center justify-center text-emerald-400 font-black"
                       style={{ background: "rgba(16,185,129,0.12)" }}>✓</div>
                     <p className="text-xs font-semibold text-emerald-400">All stocked up</p>
-                    <p className="text-[10px] text-white/25 mt-0.5">No items below threshold</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: "#8FA3BF" }}>No items below threshold</p>
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -607,7 +619,7 @@ export default function Dashboard() {
                         <div key={item.id} className="flex items-center gap-3 py-1">
                           <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-white/80 truncate">{item.name}</p>
+                            <p className="text-[11px] font-semibold truncate" style={{ color: "#1A1F36" }}>{item.name}</p>
                           </div>
                           <span className="text-xs font-black shrink-0" style={{ color }}>{item.stockQty}</span>
                         </div>
@@ -621,9 +633,9 @@ export default function Dashboard() {
               {topItems.length > 0 && (
                 <div
                   className="rounded-2xl p-4"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}
                 >
-                  <h3 className="text-sm font-bold text-white mb-3">Top Sellers</h3>
+                  <h3 className="text-sm font-bold mb-3" style={{ color: "#1A1F36" }}>Top Sellers</h3>
                   <div className="space-y-2.5">
                     {topItems.slice(0, 4).map((item, i) => {
                       const maxQty = Math.max(...topItems.slice(0, 4).map(t => t.qty), 1);
@@ -635,12 +647,12 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <span className="text-[9px] font-black w-4 text-center" style={{ color }}>#{i + 1}</span>
-                              <span className="text-[11px] text-white/70 truncate max-w-[120px]">{item.name}</span>
+                              <span className="text-[11px] truncate max-w-[120px]" style={{ color: "#5A6882" }}>{item.name}</span>
                             </div>
-                            <span className="text-[10px] font-bold text-white/60 shrink-0">{item.qty} sold</span>
+                            <span className="text-[10px] font-bold shrink-0" style={{ color: "#8FA3BF" }}>{item.qty} sold</span>
                           </div>
-                          <div className="h-1 rounded-full overflow-hidden ml-6" style={{ background: "rgba(255,255,255,0.06)" }}>
-                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color, opacity: 0.7 }} />
+                          <div className="h-1 rounded-full overflow-hidden ml-6" style={{ background: "rgba(0,0,0,0.06)" }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color, opacity: 0.75 }} />
                           </div>
                         </div>
                       );

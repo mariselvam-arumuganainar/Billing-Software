@@ -21,7 +21,7 @@ async function main() {
   await prisma.tenant.deleteMany({});
 
   const tenant = await prisma.tenant.create({
-    data: { name: 'PSS Store', status: 'ACTIVE' }
+    data: { name: 'My Store', status: 'ACTIVE' }
   });
 
   // bcrypt hash for 'password' (cost 10)
@@ -34,7 +34,7 @@ async function main() {
   await prisma.storeProfile.create({
     data: {
       tenantId: tenant.id,
-      name: 'PSS Store - Bangalore Branch',
+      name: 'My Store - Bangalore Branch',
       address: '123 Retail Lane, HSR Layout, Bengaluru, Karnataka - 560102',
       gstNumber: '29AAAAA1111A1Z1'
     }
@@ -44,7 +44,7 @@ async function main() {
     data: {
       tenantId: tenant.id,
       rewardConversionRate: 0.1,
-      invoicePrefix: 'PSS-',
+      invoicePrefix: 'My-',
       thermalPrintEnabled: true
     }
   });

@@ -49,6 +49,9 @@ export const createTenant = async (req: Request, res: Response) => {
     return res.status(201).json({ message: 'Tenant created', tenant: newTenant });
   } catch (error: any) {
     console.error('Error creating tenant:', error);
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'Mobile number is already registered to another store' });
+    }
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };

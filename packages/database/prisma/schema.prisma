@@ -15,17 +15,20 @@ model Tenant {
   status            String             @default("ACTIVE") // ACTIVE, SUSPENDED
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  
+
   credentials       TenantCredential?
   profile           StoreProfile?
   settings          TenantSettings?
-  
+
   items             Item[]
   customers         Customer[]
   invoices          Invoice[]
   rewardLedgers     RewardLedger[]
   creditAccounts    CreditAccount[]
   expenses          Expense[]
+  reminders         Reminder[]
+  stockEntries      StockEntry[]
+  suppliers         Supplier[]
 }
 
 model TenantCredential {
@@ -99,6 +102,7 @@ model Item {
   barcode        String?  @db.VarChar(100)
   unit           String
   price          Float
+  purchasePrice  Float?
   gstRateDefault Float    @default(0)
   hsnSac         String?
   stockQty       Float    @default(0)
@@ -108,6 +112,7 @@ model Item {
   updatedAt      DateTime @updatedAt
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoiceLines   InvoiceLine[]
+  stockEntries   StockEntry[]
 
   @@unique([tenantId, barcode])
   @@index([tenantId])
@@ -118,10 +123,11 @@ model Customer {
   tenantId          String
   mobileNumber      String
   name              String?
+  notes             String?
   totalRewardPoints Float    @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoices          Invoice[]
   rewardLedger      RewardLedger[]
@@ -207,9 +213,10 @@ model CreditTransaction {
   id                String   @id @default(uuid())
   accountId         String
   amount            Float
-  type              String   // CHARGE, REPAYMENT
+  type              String   // CHARGE, REPAYMENT, MANUAL_CHARGE, LIMIT_CHANGE
+  notes             String?
   createdAt         DateTime @default(now())
-  
+
   account           CreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
@@ -238,4 +245,62 @@ model Expense {
   @@index([tenantId])
   @@index([tenantId, date])
   @@index([tenantId, status])
+}
+
+model Reminder {
+  id           String    @id @default(uuid())
+  tenantId     String
+  title        String
+  description  String?   @db.Text
+  reminderAt   DateTime
+  repeatType   String    @default("NONE") // NONE, DAILY, WEEKLY, MONTHLY
+  priority     String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status       String    @default("PENDING") // PENDING, DONE, SNOOZED
+  completedAt  DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, reminderAt])
+  @@index([tenantId, status])
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  mobile      String?
+  address     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stockEntries StockEntry[]
+
+  @@index([tenantId])
+}
+
+model StockEntry {
+  id            String    @id @default(uuid())
+  tenantId      String
+  itemId        String
+  supplierId    String?
+  qty           Float
+  purchasePrice Float?
+  movementType  String    @default("ADD") // ADD, ADJUST, DAMAGE, SALE
+  entryDate     DateTime  @default(now())
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item      Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  supplier  Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([tenantId])
+  @@index([itemId])
+  @@index([tenantId, entryDate])
 }

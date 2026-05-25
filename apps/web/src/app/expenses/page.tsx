@@ -165,17 +165,17 @@ function TrendChart({ expenses }: { expenses: Expense[] }) {
         const bH  = Math.max((d.total / maxVal) * H, d.total > 0 ? 4 : 2);
         const x   = i * (bW + gap);
         const y   = H - bH;
-        const col = d.isToday ? '#f97316' : d.total > 0 ? '#8b5cf6' : 'rgba(255,255,255,0.07)';
+        const col = d.isToday ? '#f97316' : d.total > 0 ? '#8b5cf6' : 'rgba(0,0,0,0.06)';
         return (
           <g key={d.ds}>
             <rect x={x} y={y} width={bW} height={bH} rx="4" fill={col} opacity={d.total > 0 ? 0.85 : 1} />
             {d.total > 0 && (
-              <text x={x + bW / 2} y={y - 4} textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="7" fontWeight="600">
+              <text x={x + bW / 2} y={y - 4} textAnchor="middle" fill="rgba(26,31,54,0.45)" fontSize="7" fontWeight="600">
                 {fmtShort(d.total)}
               </text>
             )}
             <text x={x + bW / 2} y={H + 14} textAnchor="middle"
-              fill={d.isToday ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.30)'}
+              fill={d.isToday ? 'rgba(26,31,54,0.85)' : 'rgba(26,31,54,0.38)'}
               fontSize="8" fontWeight={d.isToday ? '700' : '400'}>
               {d.label}
             </text>
@@ -216,8 +216,8 @@ function CategoryBreakdown({ expenses }: { expenses: Expense[] }) {
               <span className="text-xs font-bold text-white w-16 text-right">{fmtShort(item.amt)}</span>
             </div>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${item.pct}%`, background: item.color, opacity: 0.75 }} />
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.07)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${item.pct}%`, background: item.color, opacity: 0.85 }} />
           </div>
         </div>
       ))}
@@ -249,7 +249,7 @@ function KpiCard({ label, value, sub, color, hero = false }: {
 function AttachmentChip({ fileName, onRemove }: { fileName: string; onRemove: () => void }) {
   return (
     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium max-w-full"
-      style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.28)', color: '#a5b4fc' }}>
+      style={{ background: 'rgba(67,97,238,0.10)', border: '1px solid rgba(67,97,238,0.25)', color: '#3451D1' }}>
       <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
       </svg>
@@ -265,7 +265,7 @@ function SortBtn({ active, dir, onClick, children }: {
 }) {
   return (
     <button onClick={onClick} className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors"
-      style={{ color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.28)' }}>
+      style={{ color: active ? 'rgba(26,31,54,0.90)' : 'rgba(26,31,54,0.40)' }}>
       {children}
       {active && <span style={{ color: 'var(--theme-nav-dot)' }}>{dir === 'desc' ? '↓' : '↑'}</span>}
     </button>
@@ -339,25 +339,25 @@ function ExpenseFormDrawer({ expense, onClose, onSave }: {
     }
   }
 
-  const iCls  = "w-full px-3 py-2.5 rounded-xl text-sm text-white/90 outline-none transition-all";
-  const iSt   = { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' } as React.CSSProperties;
-  const lbCls = "block text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5";
+  const iCls  = "w-full px-3 py-2.5 rounded-xl text-sm text-slate-800 placeholder-slate-400 outline-none transition-all focus:border-blue-400";
+  const iSt   = { background: '#F7F9FC', border: '1px solid rgba(0,0,0,0.09)' } as React.CSSProperties;
+  const lbCls = "block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5";
 
   return (
-    <div className="fixed inset-0 z-50 flex" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+    <div className="fixed inset-0 z-50 flex" style={{ background: 'var(--bg-overlay)', backdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ml-auto h-full w-full max-w-xl flex flex-col shadow-2xl"
-        style={{ background: 'var(--theme-modal-bg)', borderLeft: '1px solid rgba(255,255,255,0.09)' }}>
+        style={{ background: 'var(--theme-modal-bg)', borderLeft: '1px solid rgba(0,0,0,0.08)' }}>
 
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
           <div>
-            <h3 className="text-base font-black text-white">{isEdit ? 'Edit Expense' : 'Log Expense'}</h3>
-            <p className="text-[11px] text-white/35 mt-0.5">{isEdit ? 'Update this expense record' : 'Record a new business expense'}</p>
+            <h3 className="text-base font-black text-slate-900">{isEdit ? 'Edit Expense' : 'Log Expense'}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{isEdit ? 'Update this expense record' : 'Record a new business expense'}</p>
           </div>
           <button onClick={onClose}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-xl leading-none">
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all text-xl leading-none">
             ×
           </button>
         </div>
@@ -441,7 +441,7 @@ function ExpenseFormDrawer({ expense, onClose, onSave }: {
               ) : (
                 <button type="button" onClick={() => fileRef.current?.click()}
                   className="w-full py-3.5 rounded-xl text-xs font-semibold text-white/45 hover:text-white/70 transition-all flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.14)' }}>
+                  style={{ background: '#FFFFFF', border: '1px dashed rgba(0,0,0,0.12)' }}>
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
                   </svg>
@@ -451,24 +451,24 @@ function ExpenseFormDrawer({ expense, onClose, onSave }: {
               {fileError && <p className="mt-1.5 text-[11px]" style={{ color: '#fb7185' }}>{fileError}</p>}
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
                 onChange={handleFileChange} className="hidden" />
-              <p className="mt-1.5 text-[10px] text-white/20">Stored per tenant. Used for audit, reimbursement, or GST reconciliation.</p>
+              <p className="mt-1.5 text-[10px] text-slate-400">Stored per tenant. Used for audit, reimbursement, or GST reconciliation.</p>
             </div>
 
             {/* Future-ready placeholder strip */}
             <div className="rounded-xl px-4 py-3 flex items-center gap-5"
-              style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <p className="text-[9px] font-bold text-white/18 uppercase tracking-widest shrink-0">Coming soon</p>
+              style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Coming soon</p>
               {['🏷 Tags', '🔄 Recurring', '✅ Approval', '🧾 GST Credit'].map(f => (
-                <span key={f} className="text-[10px] text-white/18">{f}</span>
+                <span key={f} className="text-[10px] text-slate-400">{f}</span>
               ))}
             </div>
           </div>
 
           {/* Footer */}
           <div className="px-6 py-4 flex justify-end gap-3 shrink-0"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.18)' }}>
+            style={{ borderTop: '1px solid rgba(0,0,0,0.06)', background: 'rgba(0,0,0,0.04)' }}>
             <button type="button" onClick={onClose}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white/50 hover:text-white hover:bg-white/08 transition-all">
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
@@ -501,9 +501,9 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
   }
 
   const infoTile = (label: string, value: string, valueColor?: string) => (
-    <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <p className="text-[9px] font-bold text-white/28 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-sm font-semibold" style={{ color: valueColor ?? 'rgba(255,255,255,0.80)' }}>{value || '—'}</p>
+    <div className="rounded-xl p-3" style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-sm font-semibold" style={{ color: valueColor ?? 'rgba(26,31,54,0.85)' }}>{value || '—'}</p>
     </div>
   );
 
@@ -511,11 +511,11 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
     <div className="fixed inset-0 bg-black/55 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: 'var(--theme-modal-bg)', border: '1px solid rgba(255,255,255,0.10)' }}>
+        style={{ background: 'var(--theme-modal-bg)', border: '1px solid rgba(0,0,0,0.08)' }}>
 
         {/* Header */}
         <div className="px-6 py-4 flex items-start justify-between"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
@@ -525,7 +525,7 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
             <p className="text-xs text-white/40 mt-0.5">{fmtDate(expense.date)}</p>
           </div>
           <button onClick={onClose}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-xl leading-none">×</button>
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all text-xl leading-none">×</button>
         </div>
 
         {/* Body */}
@@ -538,7 +538,7 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
           </div>
 
           {expense.notes && (
-            <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-4" style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <p className="text-[9px] font-bold text-white/28 uppercase tracking-wider mb-1.5">Notes</p>
               <p className="text-sm text-white/70 leading-relaxed">{expense.notes}</p>
             </div>
@@ -547,16 +547,16 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
           {/* Attachment */}
           {expense.attachmentUrl && (
             <div className="rounded-xl p-4 space-y-3"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <p className="text-[9px] font-bold text-white/28 uppercase tracking-wider">Attachment</p>
               {isImage(expense.attachmentMimeType) && (
                 <img src={expense.attachmentUrl} alt="Receipt"
                   className="max-h-44 rounded-lg object-contain w-full"
-                  style={{ background: 'rgba(255,255,255,0.05)' }} />
+                  style={{ background: '#FFFFFF' }} />
               )}
               <button onClick={download}
                 className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                style={{ background: 'rgba(99,102,241,0.14)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.24)' }}>
+                style={{ background: 'rgba(67,97,238,0.10)', color: '#3451D1', border: '1px solid rgba(67,97,238,0.25)' }}>
                 ⬇ {expense.attachmentMimeType === 'application/pdf' ? 'Download PDF' : 'Download Image'}
                 {expense.attachmentFileName && ` — ${expense.attachmentFileName}`}
               </button>
@@ -565,11 +565,11 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
 
           {/* Audit */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-xl p-3" style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider mb-1">Created At</p>
               <p className="text-[11px] text-white/40">{fmtDT(expense.createdAt)}</p>
             </div>
-            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-xl p-3" style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider mb-1">Last Updated</p>
               <p className="text-[11px] text-white/40">{fmtDT(expense.updatedAt)}</p>
             </div>
@@ -577,16 +577,16 @@ function DetailModal({ expense, onClose, onEdit, onArchive }: {
 
           {/* Future: created-by placeholder */}
           <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
             <div className="h-6 w-6 rounded-full flex items-center justify-center font-black text-[10px]"
-              style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.25)' }}>?</div>
-            <span className="text-[10px] text-white/18">Created by · multi-user tracking coming in a future release</span>
+              style={{ background: '#FFFFFF', color: 'rgba(26,31,54,0.40)' }}>?</div>
+            <span className="text-[10px] text-slate-400">Created by · multi-user tracking coming in a future release</span>
           </div>
         </div>
 
         {/* Actions */}
         <div className="px-6 py-4 flex items-center gap-3"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.18)' }}>
+          style={{ borderTop: '1px solid rgba(0,0,0,0.06)', background: 'rgba(0,0,0,0.04)' }}>
           <button onClick={onArchive}
             className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
             style={{ background: 'rgba(244,63,94,0.11)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.20)' }}>
@@ -611,7 +611,7 @@ function ArchiveModal({ expense, loading, onClose, onConfirm }: {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: 'var(--theme-modal-bg)', border: '1px solid rgba(255,255,255,0.10)' }}>
+        style={{ background: 'var(--theme-modal-bg)', border: '1px solid rgba(0,0,0,0.08)' }}>
         <div className="p-6 text-center space-y-4">
           <div className="h-12 w-12 rounded-full mx-auto flex items-center justify-center text-xl"
             style={{ background: 'rgba(244,63,94,0.12)' }}>🗂</div>
@@ -625,7 +625,7 @@ function ArchiveModal({ expense, loading, onClose, onConfirm }: {
           </div>
           <div className="flex gap-3 pt-1">
             <button onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white/50 hover:text-white hover:bg-white/08 transition-all">
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all">
               Cancel
             </button>
             <button onClick={onConfirm} disabled={loading}
@@ -780,7 +780,7 @@ export default function ExpensesPage() {
   }
 
   // ── Shared input style ────────────────────────────────────────────────
-  const filterInputSt: React.CSSProperties = { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' };
+  const filterInputSt: React.CSSProperties = { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' };
   const filterCls = "px-3 py-2 rounded-xl text-xs text-white/70 outline-none";
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -811,7 +811,7 @@ export default function ExpensesPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={fetchExpenses}
                 className="h-9 px-3 rounded-xl text-xs font-semibold text-white/50 hover:text-white transition-all flex items-center gap-1.5"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M1 4v6h6M23 20v-6h-6"/>
                   <path d="M20.49 9A9 9 0 005.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 013.51 15"/>
@@ -820,7 +820,7 @@ export default function ExpensesPage() {
               </button>
               <button onClick={() => exportToCSV(filtered)} disabled={filtered.length === 0}
                 className="h-9 px-3 rounded-xl text-xs font-semibold transition-all disabled:opacity-40 flex items-center gap-1.5"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)' }}>
+                style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)', color: 'rgba(26,31,54,0.70)' }}>
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -839,12 +839,12 @@ export default function ExpensesPage() {
           </div>
 
           {/* ── Filters ── */}
-          <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="rounded-2xl p-4" style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
             <div className="flex flex-wrap gap-3 items-center">
               {/* Search */}
               <div className="relative flex-1 min-w-[180px] max-w-xs">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                  fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'rgba(26,31,54,0.40)' }}>
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input type="text" placeholder="Search vendor, notes, ref…"
@@ -894,12 +894,12 @@ export default function ExpensesPage() {
 
           {/* ── KPI cards ── */}
           <section className="grid grid-cols-2 xl:grid-cols-6 gap-3">
-            <KpiCard label="Total (Filtered)"  value={fmtShort(kpis.total)}      sub={`${kpis.count} entries`}           color="#8b5cf6" hero />
+            <KpiCard label="Total (Filtered)"  value={fmtShort(kpis.total)}      sub={`${kpis.count} entries`}           color="#4361EE" hero />
             <KpiCard label="Today"             value={fmtShort(kpis.todayTotal)} sub="All of today"                      color="#f97316" />
             <KpiCard label="This Month"        value={fmtShort(kpis.monthTotal)} sub="Current calendar month"             color="#f43f5e" />
             <KpiCard label="Avg Daily"         value={fmtShort(kpis.avgDaily)}   sub="Per active day (filtered)"          color="#3b82f6" />
             <KpiCard label="Top Category"      value={kpis.topCat}               sub="Highest spending"                   color="#10b981" />
-            <KpiCard label="Entries"           value={`${kpis.count}`}           sub={`of ${expenses.length} total`}      color="#6366f1" />
+            <KpiCard label="Entries"           value={`${kpis.count}`}           sub={`of ${expenses.length} total`}      color="#4361EE" />
           </section>
 
           {/* ── Analytics row ── */}
@@ -907,7 +907,7 @@ export default function ExpensesPage() {
 
             {/* Category breakdown */}
             <div className="rounded-2xl p-5"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-white">Category Breakdown</h3>
@@ -920,7 +920,7 @@ export default function ExpensesPage() {
 
             {/* 7-day trend + largest */}
             <div className="rounded-2xl p-5 flex flex-col"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
               <div className="mb-3">
                 <h3 className="text-sm font-bold text-white">7-Day Trend</h3>
                 <p className="text-[11px] text-white/40 mt-0.5">Daily spend — last 7 days</p>
@@ -928,7 +928,7 @@ export default function ExpensesPage() {
               <TrendChart expenses={expenses} />
 
               {filtered.length > 0 && (
-                <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                   <p className="text-[9px] font-bold text-white/28 uppercase tracking-wider mb-2">Largest Entries</p>
                   {[...filtered].sort((a, b) => b.amount - a.amount).slice(0, 3).map(e => (
                     <div key={e.id} className="flex items-center justify-between py-1.5">
@@ -946,10 +946,10 @@ export default function ExpensesPage() {
 
           {/* ── Ledger table ── */}
           <section className="rounded-2xl overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)' }}>
 
             <div className="flex items-center justify-between px-5 py-3.5"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
               <div>
                 <h3 className="text-sm font-bold text-white">Expense Records</h3>
                 <p className="text-[11px] text-white/35 mt-0.5">
@@ -962,7 +962,7 @@ export default function ExpensesPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px]">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
                     {[
                       { label: 'Date',   field: 'date'     as SortField },
                       { label: 'Category', field: 'category' as SortField },
@@ -989,11 +989,11 @@ export default function ExpensesPage() {
                 <tbody>
                   {/* Loading skeleton */}
                   {loading && Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
                       {Array.from({ length: 8 }).map((_, j) => (
                         <td key={j} className="px-4 py-3.5">
                           <div className="h-3 rounded animate-pulse"
-                            style={{ background: 'rgba(255,255,255,0.06)', width: j === 7 ? '72px' : '80%' }} />
+                            style={{ background: 'rgba(0,0,0,0.07)', width: j === 7 ? '72px' : '80%' }} />
                         </td>
                       ))}
                     </tr>
@@ -1005,7 +1005,7 @@ export default function ExpensesPage() {
                       <td colSpan={8} className="px-4 py-16 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <div className="h-14 w-14 rounded-2xl flex items-center justify-center text-3xl"
-                            style={{ background: 'rgba(255,255,255,0.05)' }}>
+                            style={{ background: '#FFFFFF' }}>
                             {hasFilters ? '🔍' : '📋'}
                           </div>
                           <p className="text-sm font-semibold text-white/40">
@@ -1019,7 +1019,7 @@ export default function ExpensesPage() {
                           {hasFilters && (
                             <button onClick={clearFilters}
                               className="text-xs font-bold px-4 py-1.5 rounded-lg mt-1 transition-all"
-                              style={{ background: 'rgba(139,92,246,0.12)', color: '#a5b4fc', border: '1px solid rgba(139,92,246,0.22)' }}>
+                              style={{ background: 'rgba(67,97,238,0.10)', color: '#3451D1', border: '1px solid rgba(67,97,238,0.22)' }}>
                               Clear Filters
                             </button>
                           )}
@@ -1034,9 +1034,9 @@ export default function ExpensesPage() {
                     const modeColor = e.paymentMode ? (MODE_COLOR[e.paymentMode] ?? '#64748b') : null;
                     return (
                       <tr key={e.id} className="group cursor-pointer"
-                        style={i < filtered.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.04)' } : undefined}
+                        style={i < filtered.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.06)' } : undefined}
                         onClick={() => setDetail({ open: true, expense: e })}
-                        onMouseEnter={ev => (ev.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                        onMouseEnter={ev => (ev.currentTarget.style.background = '#F7F9FC')}
                         onMouseLeave={ev => (ev.currentTarget.style.background = '')}>
 
                         {/* Date */}
@@ -1055,8 +1055,8 @@ export default function ExpensesPage() {
                         {/* Vendor / Notes */}
                         <td className="px-4 py-3.5 max-w-[180px]">
                           {e.vendorName && <p className="text-xs font-semibold text-white/65 truncate">{e.vendorName}</p>}
-                          {e.notes && <p className="text-[10px] text-white/32 truncate mt-0.5">{e.notes}</p>}
-                          {!e.vendorName && !e.notes && <span className="text-[10px] text-white/18">—</span>}
+                          {e.notes && <p className="text-[10px] text-white/30 truncate mt-0.5">{e.notes}</p>}
+                          {!e.vendorName && !e.notes && <span className="text-[10px] text-slate-400">—</span>}
                         </td>
 
                         {/* Mode */}
@@ -1064,7 +1064,7 @@ export default function ExpensesPage() {
                           {modeColor
                             ? <span className="text-[10px] font-bold px-2 py-0.5 rounded"
                                 style={{ background: `${modeColor}16`, color: modeColor }}>{e.paymentMode}</span>
-                            : <span className="text-[10px] text-white/18">—</span>}
+                            : <span className="text-[10px] text-slate-400">—</span>}
                         </td>
 
                         {/* Reference */}
@@ -1076,7 +1076,7 @@ export default function ExpensesPage() {
                         <td className="px-4 py-3.5 text-center">
                           {e.attachmentUrl
                             ? <span title={e.attachmentFileName ?? 'Attachment'}>📎</span>
-                            : <span className="text-white/14 text-xs">—</span>}
+                            : <span className="text-slate-400 text-xs">—</span>}
                         </td>
 
                         {/* Amount */}
@@ -1090,13 +1090,13 @@ export default function ExpensesPage() {
                             <button
                               onClick={() => setDetail({ open: true, expense: e })}
                               className="text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
-                              style={{ color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.07)' }}>
+                              style={{ color: 'rgba(26,31,54,0.55)', background: '#FFFFFF' }}>
                               View
                             </button>
                             <button
                               onClick={() => setDrawer({ open: true, expense: e })}
                               className="text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
-                              style={{ color: '#a5b4fc', background: 'rgba(99,102,241,0.13)' }}>
+                              style={{ color: '#3451D1', background: 'rgba(99,102,241,0.13)' }}>
                               Edit
                             </button>
                             <button
@@ -1117,7 +1117,7 @@ export default function ExpensesPage() {
             {/* Footer */}
             {!loading && filtered.length > 0 && (
               <div className="px-5 py-3 flex items-center justify-between"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                 <p className="text-[10px] text-white/28">
                   {filtered.length} entries · {fmtCurrency(kpis.total)} total
                 </p>
@@ -1159,7 +1159,7 @@ export default function ExpensesPage() {
           expense={archive.expense}
           loading={archiving}
           onClose={() => setArchive({ open: false, expense: null })}
-          onConfirm={handleArchive}
+          onConfirm={() => handleArchive()}
         />
       )}
     </div>

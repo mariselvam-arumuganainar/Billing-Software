@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
-import { apiClient } from '@/lib/api';
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { apiClient } from "@/lib/api";
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'pos', label: 'POS Billing', icon: '🛒' },
-  { id: 'items', label: 'Item Master', icon: '📦' },
-  { id: 'invoices', label: 'Invoices', icon: '🧾' },
-  { id: 'customers', label: 'Customers', icon: '👥' },
-  { id: 'expenses', label: 'Expenses', icon: '💸' },
-  { id: 'settings', label: 'Configuration', icon: '⚙️' },
+  { id: "dashboard", label: "Dashboard", icon: "📊" },
+  { id: "pos", label: "POS Billing", icon: "🛒" },
+  { id: "items", label: "Item Master", icon: "📦" },
+  { id: "invoices", label: "Invoices", icon: "🧾" },
+  { id: "customers", label: "Customers", icon: "👥" },
+  { id: "expenses", label: "Expenses", icon: "💸" },
+  { id: "settings", label: "Configuration", icon: "⚙️" },
 ];
 
 type Props = {
@@ -21,14 +21,15 @@ type Props = {
 };
 
 export default function Sidebar({ subtitle, printHidden = false }: Props) {
-  const [storeName, setStoreName] = useState('PSS Store');
+  const [storeName, setStoreName] = useState("My Store");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    apiClient.get('/settings/profile')
-      .then(r => {
+    apiClient
+      .get("/settings/profile")
+      .then((r) => {
         const p = r.data?.profile;
         if (p?.name) setStoreName(p.name);
         if (p?.logoUrl) setLogoUrl(p.logoUrl);
@@ -37,20 +38,20 @@ export default function Sidebar({ subtitle, printHidden = false }: Props) {
   }, []);
 
   const handleLogout = () => {
-    Cookies.remove('token');
-    Cookies.remove('tenantId');
-    Cookies.remove('role');
-    router.push('/login');
+    Cookies.remove("token");
+    Cookies.remove("tenantId");
+    Cookies.remove("role");
+    router.push("/login");
   };
 
   const activeId = NAV_ITEMS.find(
-    item => pathname === `/${item.id}` || pathname.startsWith(`/${item.id}/`)
+    (item) => pathname === `/${item.id}` || pathname.startsWith(`/${item.id}/`),
   )?.id;
 
   return (
     <aside
       className={`w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 shrink-0 ${
-        printHidden ? 'print:hidden' : ''
+        printHidden ? "print:hidden" : ""
       }`}
     >
       {/* Store identity */}
@@ -64,9 +65,13 @@ export default function Sidebar({ subtitle, printHidden = false }: Props) {
               onError={() => setLogoUrl(null)}
             />
             <div className="min-w-0">
-              <p className="text-base font-bold text-white truncate leading-tight">{storeName}</p>
+              <p className="text-base font-bold text-white truncate leading-tight">
+                {storeName}
+              </p>
               {subtitle && (
-                <p className="text-xs text-slate-400 mt-0.5 truncate">{subtitle}</p>
+                <p className="text-xs text-slate-400 mt-0.5 truncate">
+                  {subtitle}
+                </p>
               )}
             </div>
           </div>
@@ -86,14 +91,14 @@ export default function Sidebar({ subtitle, printHidden = false }: Props) {
 
       {/* Navigation */}
       <nav className="flex-1 mt-3 px-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(item => (
+        {NAV_ITEMS.map((item) => (
           <a
             key={item.id}
             href={`/${item.id}`}
             className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-150 ${
               activeId === item.id
-                ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/40'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                ? "bg-teal-600 text-white shadow-lg shadow-teal-900/40"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
             }`}
           >
             <span className="mr-3 text-lg leading-none">{item.icon}</span>

@@ -20,7 +20,7 @@ async function main() {
   // 1. Create a Tenant
   const tenant = await prisma.tenant.create({
     data: {
-      name: 'PSS Store',
+      name: 'My Store',
       status: 'ACTIVE',
     },
   });
@@ -39,7 +39,7 @@ async function main() {
   await prisma.storeProfile.create({
     data: {
       tenantId: tenant.id,
-      name: 'PSS Store - Bangalore Branch',
+      name: 'My Store - Bangalore Branch',
       address: '123 Retail Lane, HSR Layout, Bengaluru, Karnataka - 560102',
       gstNumber: '29AAAAA1111A1Z1',
     },
@@ -50,7 +50,7 @@ async function main() {
     data: {
       tenantId: tenant.id,
       rewardConversionRate: 0.1, // 1 point per 10 rupees spent
-      invoicePrefix: 'PSS-',
+      invoicePrefix: 'My-',
       thermalPrintEnabled: true,
     },
   });
@@ -132,7 +132,7 @@ async function main() {
   });
 
   console.log('Database seeded successfully!');
-  console.log(`PSS Store Tenant ID: ${tenant.id}`);
+  console.log(`My Store Tenant ID: ${tenant.id}`);
   console.log('Use mobile: 9876543210 / password: password to log in.');
 }
 

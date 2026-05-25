@@ -1,6 +1,7 @@
+// dotenv is preloaded via `-r dotenv/config` in the dev script so process.env
+// is fully populated before any module-level code in auth.ts or authController.ts runs.
 import express from 'express';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import itemsRoutes from './routes/items';
@@ -10,8 +11,8 @@ import expensesRoutes from './routes/expenses';
 import reportsRoutes from './routes/reports';
 import settingsRoutes from './routes/settings';
 import billingRoutes from './routes/billing';
-
-dotenv.config();
+import remindersRoutes from './routes/reminders';
+import stockRoutes from './routes/stock';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -43,7 +44,9 @@ app.use('/api/v1/credit', creditRoutes);
 app.use('/api/v1/expenses', expensesRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/settings', settingsRoutes);
-app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/billing',   billingRoutes);
+app.use('/api/v1/reminders', remindersRoutes);
+app.use('/api/v1/stock',     stockRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
