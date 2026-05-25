@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "./billing-engine"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

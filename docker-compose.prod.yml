@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: billing_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d billing_saas"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    # Not exposed to host — internal only
+
+  # ── Express API Gateway ───────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/billing_saas?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      BILLING_ENGINE_URL: http://billing-engine:8082
+      BILLING_INTERNAL_KEY: ${BILLING_INTERNAL_KEY}
+      ALLOWED_ORIGINS: https://origindemo-billing.in,https://www.origindemo-billing.in
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Go Billing Engine ─────────────────────────────────────────────────────
+  billing-engine:
+    build:
+      context: services/billing-engine
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: 8082
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/billing_saas?sslmode=disable
+      BILLING_INTERNAL_KEY: ${BILLING_INTERNAL_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────
+  web:
+    build:
+      context: apps/web
+      args:
+        NEXT_PUBLIC_API_GATEWAY_URL: https://api.origindemo-billing.in/api/v1
+        NEXT_PUBLIC_BILLING_ENGINE_URL: https://billing.origindemo-billing.in/api/v1
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - api-gateway
+      - billing-engine
+
+volumes:
+  postgres_data:
