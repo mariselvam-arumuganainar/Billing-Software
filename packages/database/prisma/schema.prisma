@@ -29,6 +29,8 @@ model Tenant {
   reminders         Reminder[]
   stockEntries      StockEntry[]
   suppliers         Supplier[]
+  stockHistory      StockHistory[]
+  stockPurchases    StockPurchase[]
 }
 
 model TenantCredential {
@@ -88,6 +90,9 @@ model TenantSettings {
   enableUpi               Boolean  @default(true)
   enableCredit            Boolean  @default(true)
   enableSplit             Boolean  @default(true)
+  manualQtyEnabled        Boolean  @default(false)
+  discountEnabled         Boolean  @default(false)
+  roundUpEnabled          Boolean  @default(false)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -95,24 +100,28 @@ model TenantSettings {
 }
 
 model Item {
-  id             String   @id @default(uuid())
-  tenantId       String
-  name           String
-  sku            String?
-  barcode        String?  @db.VarChar(100)
-  unit           String
-  price          Float
-  purchasePrice  Float?
-  gstRateDefault Float    @default(0)
-  hsnSac         String?
-  stockQty       Float    @default(0)
-  isActive       Boolean  @default(true)
-  imageUrl       String?  @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoiceLines   InvoiceLine[]
-  stockEntries   StockEntry[]
+  id               String   @id @default(uuid())
+  tenantId         String
+  name             String
+  sku              String?
+  barcode          String?  @db.VarChar(100)
+  unit             String
+  price            Float
+  purchasePrice    Float?
+  gstRateDefault   Float    @default(0)
+  hsnSac           String?
+  stockQty         Float    @default(0)
+  lowStockThreshold Int     @default(10)
+  discountRate     Float    @default(0)
+  isActive         Boolean  @default(true)
+  imageUrl         String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceLines     InvoiceLine[]
+  stockEntries     StockEntry[]
+  stockHistory     StockHistory[]
+  stockPurchases   StockPurchase[]
 
   @@unique([tenantId, barcode])
   @@index([tenantId])
@@ -170,7 +179,8 @@ model InvoiceLine {
   cgst              Float    @default(0)
   sgst              Float    @default(0)
   igst              Float    @default(0)
-  
+  discountRate      Float    @default(0)
+
   invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   item              Item     @relation(fields: [itemId], references: [id])
 
@@ -303,4 +313,41 @@ model StockEntry {
   @@index([tenantId])
   @@index([itemId])
   @@index([tenantId, entryDate])
+}
+
+model StockHistory {
+  id             String   @id @default(cuid())
+  tenantId       String
+  itemId         String
+  changeType     String   // PURCHASE | ADJUSTMENT | SALE
+  quantityChange Int
+  previousQty    Int
+  newQty         Int
+  reason         String?
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item           Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([itemId])
+}
+
+model StockPurchase {
+  id           String   @id @default(cuid())
+  tenantId     String
+  itemId       String
+  supplierName String
+  qty          Int
+  costPerUnit  Float
+  totalCost    Float
+  date         DateTime
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item         Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([itemId])
 }

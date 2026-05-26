@@ -314,6 +314,18 @@ export default function Dashboard() {
 
   const payTotal = payEntries.reduce((s, e) => s + e.value, 0);
 
+
+  // Derived: chart heading
+  const defaultStart = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  const defaultEnd   = new Date().toISOString().slice(0, 10);
+  const isCustomRange = startDate !== defaultStart || endDate !== defaultEnd;
+  const fmtDDMMYYYY = (d: string) => { const [y,m,dy] = d.split("-"); return `${dy}-${m}-${y}`; };
+  const chartHeading = isCustomRange
+    ? `${fmtDDMMYYYY(startDate)} to ${fmtDDMMYYYY(endDate)} Revenue`
+    : "Monthly Revenue";
+  const chartSubtitle = isCustomRange
+    ? `Custom range · ${chartData.length} data point${chartData.length !== 1 ? "s" : ""}`
+    : "Last 6 months — current month highlighted";
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -411,8 +423,8 @@ export default function Dashboard() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>Monthly Revenue</h3>
-                  <p className="text-[11px] mt-0.5" style={{ color: "#8FA3BF" }}>Last 6 months — current month highlighted</p>
+                  <h3 className="text-sm font-bold" style={{ color: "#1A1F36" }}>{chartHeading}</h3>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#8FA3BF" }}>{chartSubtitle}</p>
                 </div>
                 <div className="flex items-center gap-3 text-[10px]" style={{ color: "#8FA3BF" }}>
                   <span className="flex items-center gap-1.5">

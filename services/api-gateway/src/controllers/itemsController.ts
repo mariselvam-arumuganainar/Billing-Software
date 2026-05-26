@@ -13,6 +13,7 @@ type ItemPayload = {
   stockQty?: string | number;
   imageUrl?: string;
   isActive?: boolean;
+  discountRate?: string | number;
 };
 
 const toNumber = (value: string | number | undefined, fallback = 0): number => {
@@ -44,6 +45,7 @@ const normalizeItemPayload = (body: ItemPayload) => {
     hsnSac: normalizeNullableString(body.hsnSac),
     stockQty: toNumber(body.stockQty, 0),
     imageUrl: normalizeNullableString(body.imageUrl),
+    discountRate: toNumber(body.discountRate, 0),
   };
 };
 
@@ -183,6 +185,7 @@ export const createItem = async (req: AuthRequest, res: Response) => {
         hsnSac: payload.hsnSac,
         stockQty: payload.stockQty,
         imageUrl: payload.imageUrl,
+        discountRate: payload.discountRate,
       },
     });
 
@@ -257,6 +260,7 @@ export const updateItem = async (req: AuthRequest, res: Response) => {
         hsnSac: payload.hsnSac,
         stockQty: payload.stockQty,
         imageUrl: payload.imageUrl,
+        discountRate: payload.discountRate,
       },
     });
 

@@ -21,7 +21,7 @@ type Props = {
 };
 
 export default function Sidebar({ subtitle, printHidden = false }: Props) {
-  const [storeName, setStoreName] = useState("My Store");
+  const [storeName, setStoreName] = useState("Origin");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();

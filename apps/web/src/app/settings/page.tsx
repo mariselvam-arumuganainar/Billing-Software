@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Topbar from "@/components/Topbar";
 import { apiClient } from "@/lib/api";
 
-// â"€â"€ Indian states â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ?"??"? Indian states ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 const INDIAN_STATES = [
   { code: "01", name: "Jammu & Kashmir" },
@@ -45,7 +45,7 @@ const INDIAN_STATES = [
   { code: "38", name: "Ladakh" },
 ];
 
-// â"€â"€ Types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ?"??"? Types ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 type Profile = {
   name: string;
@@ -84,6 +84,9 @@ type Settings = {
   enableUpi: boolean;
   enableCredit: boolean;
   enableSplit: boolean;
+  manualQtyEnabled: boolean;
+  discountEnabled: boolean;
+  roundUpEnabled: boolean;
 };
 
 type Toast = { id: number; type: "success" | "error"; text: string };
@@ -142,9 +145,12 @@ const defaultSettings: Settings = {
   enableUpi: true,
   enableCredit: true,
   enableSplit: true,
+  manualQtyEnabled: false,
+  discountEnabled: false,
+  roundUpEnabled: false,
 };
 
-// â"€â"€ Shared sub-components â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ?"??"? Shared sub-components ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 function SectionCard({
   title,
@@ -246,7 +252,7 @@ function SaveBtn({ saving, onSave }: { saving: boolean; onSave: () => void }) {
         onClick={onSave}
         className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98]"
       >
-        {saving ? "Savingâ€¦" : "Save Changes"}
+        {saving ? "Saving..." : "Save Changes"}
       </button>
     </div>
   );
@@ -259,7 +265,7 @@ const selectCls =
   "w-full px-3 py-2 rounded-lg text-sm focus:outline-none text-slate-800" +
   " bg-slate-50 border border-slate-200 focus:border-blue-400";
 
-// â"€â"€ Page â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// ?"??"? Page ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
@@ -269,6 +275,10 @@ export default function SettingsPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [thermalTestedAt, setThermalTestedAt] = useState<string | null>(null);
   const [showTestPrint, setShowTestPrint] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLoginImg, setUploadingLoginImg] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const loginImgFileRef = useRef<HTMLInputElement>(null);
   const [scannerConfig, setScannerConfig] =
     useState<ScannerConfig>(defaultScanner);
   const [scannerTestedAt, setScannerTestedAt] = useState<string | null>(null);
@@ -285,7 +295,7 @@ export default function SettingsPage() {
     );
   }, []);
 
-  // â"€â"€ Load â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ?"??"? Load ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
   useEffect(() => {
     const load = async () => {
@@ -335,6 +345,9 @@ export default function SettingsPage() {
             enableUpi: s.enableUpi ?? true,
             enableCredit: s.enableCredit ?? true,
             enableSplit: s.enableSplit ?? true,
+            manualQtyEnabled: s.manualQtyEnabled ?? false,
+            discountEnabled: s.discountEnabled ?? false,
+            roundUpEnabled: s.roundUpEnabled ?? false,
           });
         }
         const stored = localStorage.getItem("my_thermal_tested_at");
@@ -358,7 +371,7 @@ export default function SettingsPage() {
     load();
   }, [addToast]);
 
-  // â"€â"€ Save helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ?"??"? Save helpers ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
   const run = async (sectionId: string, action: () => Promise<void>) => {
     setSavingSection(sectionId);
@@ -408,7 +421,53 @@ export default function SettingsPage() {
       setProfile((prev) => ({ ...prev, loginImageUrl: "" }));
     });
 
-  // â"€â"€ Thermal test print â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const dataUrl = await fileToBase64(file);
+      const { data } = await apiClient.post("/settings/upload-logo", { fieldName: "logo", dataUrl });
+      const url: string = data.url as string;
+      setProfile((p) => ({ ...p, logoUrl: url }));
+      await apiClient.put("/settings/profile", { ...profile, logoUrl: url });
+      addToast("success", "Logo uploaded successfully");
+    } catch {
+      addToast("error", "Logo upload failed");
+    } finally {
+      setUploadingLogo(false);
+      if (logoFileRef.current) logoFileRef.current.value = "";
+    }
+  };
+
+  const handleLoginImgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLoginImg(true);
+    try {
+      const dataUrl = await fileToBase64(file);
+      const { data } = await apiClient.post("/settings/upload-logo", { fieldName: "loginLogo", dataUrl });
+      const url: string = data.url as string;
+      setProfile((p) => ({ ...p, loginImageUrl: url }));
+      await apiClient.put("/settings/profile", { ...profile, loginImageUrl: url });
+      addToast("success", "Login image uploaded successfully");
+    } catch {
+      addToast("error", "Login image upload failed");
+    } finally {
+      setUploadingLoginImg(false);
+      if (loginImgFileRef.current) loginImgFileRef.current.value = "";
+    }
+  };
+
+  // ?"??"? Thermal test print ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
   const handleTestPrint = () => {
     const now = new Date().toISOString();
@@ -480,14 +539,14 @@ export default function SettingsPage() {
   const thermal = getThermalStatus();
   const scanner = getScannerStatus();
 
-  // â"€â"€ Render â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // ?"??"? Render ?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?
 
   if (loading) {
     return (
       <div className="dark-app flex flex-col min-h-screen">
         <Topbar />
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-slate-400 text-sm">Loading configurationâ€¦</p>
+          <p className="text-slate-400 text-sm">Loading configuration???</p>
         </div>
       </div>
     );
@@ -500,15 +559,15 @@ export default function SettingsPage() {
         <div className="hidden print:block fixed inset-0 bg-white p-6 font-mono text-xs">
           <div className="max-w-xs mx-auto text-center space-y-1">
             <p className="font-bold text-base">
-              {settings.thermalHeaderText || profile.name || "My Store"}
+              {settings.thermalHeaderText || profile.name || "Origin"}
             </p>
-            <p>â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€</p>
+            <p>?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?</p>
             <p className="font-bold">*** TEST PRINT ***</p>
             <p>{new Date().toLocaleString("en-IN")}</p>
-            <p>â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€</p>
+            <p>?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?</p>
             <p>Printer: {settings.thermalPrinterName || "(not set)"}</p>
             <p>Paper: {settings.thermalPaperWidth}</p>
-            <p>â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€</p>
+            <p>?"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"??"?</p>
             <p>Printing works!</p>
           </div>
         </div>
@@ -528,7 +587,7 @@ export default function SettingsPage() {
                   : "bg-red-50 border-red-200 text-red-700"
               }`}
             >
-              {t.type === "success" ? 'âœ" ' : "âœ• "}
+              {t.type === "success" ? '??" ' : "??? "}
               {t.text}
             </div>
           ))}
@@ -553,7 +612,7 @@ export default function SettingsPage() {
                   <div className="sm:col-span-2">
                     <Field
                       label="Store Name"
-                      hint="Required — appears on all printed documents"
+                      hint="Required ? appears on all printed documents"
                     >
                       <input
                         className={inputCls}
@@ -561,7 +620,7 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           setProfile((p) => ({ ...p, name: e.target.value }))
                         }
-                        placeholder="My Store"
+                        placeholder="Origin"
                       />
                     </Field>
                   </div>
@@ -574,7 +633,7 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           setProfile((p) => ({ ...p, address: e.target.value }))
                         }
-                        placeholder="123 Retail Lane, Bengaluru — 560001"
+                        placeholder="123 Retail Lane, Bengaluru ? 560001"
                       />
                     </Field>
                   </div>
@@ -589,7 +648,7 @@ export default function SettingsPage() {
                       <option value="">Select state</option>
                       {INDIAN_STATES.map((s) => (
                         <option key={s.code} value={s.name}>
-                          {s.code} — {s.name}
+                          {s.code} ? {s.name}
                         </option>
                       ))}
                     </select>
@@ -696,7 +755,7 @@ export default function SettingsPage() {
                       <option value="">Select place of supply</option>
                       {INDIAN_STATES.map((s) => (
                         <option key={s.code} value={s.name}>
-                          {s.code} — {s.name}
+                          {s.code} ? {s.name}
                         </option>
                       ))}
                     </select>
@@ -731,81 +790,110 @@ export default function SettingsPage() {
               >
                 <div className="space-y-5">
                   <Field
-                    label="Store Logo URL"
+                    label="Store Logo"
                     hint="Shown on invoices and bills when logo display is enabled"
                   >
                     <input
-                      className={inputCls}
-                      value={profile.logoUrl}
-                      onChange={(e) =>
-                        setProfile((p) => ({ ...p, logoUrl: e.target.value }))
-                      }
-                      placeholder="https://example.com/logo.png"
+                      ref={logoFileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUpload}
                     />
-                    {profile.logoUrl && (
-                      <div
-                        className="mt-2 h-16 w-32 rounded-lg overflow-hidden"
-                        style={{
-                          border: "1px solid rgba(0,0,0,0.08)",
-                          background: "#F7F9FC",
-                        }}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={uploadingLogo}
+                        onClick={() => logoFileRef.current?.click()}
+                        className="h-16 w-28 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-colors hover:border-blue-400 disabled:opacity-50 overflow-hidden shrink-0"
+                        style={{ borderColor: "rgba(0,0,0,0.15)", background: "#F7F9FC" }}
                       >
-                        <img
-                          src={profile.logoUrl}
-                          alt="Logo preview"
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) =>
-                            (e.currentTarget.style.display = "none")
-                          }
+                        {profile.logoUrl ? (
+                          <img
+                            src={profile.logoUrl}
+                            alt="Logo"
+                            className="w-full h-full object-contain p-1"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        ) : (
+                          <>
+                            <span className="text-lg text-slate-300">&#128247;</span>
+                            <span className="text-[10px] text-slate-400">Upload logo</span>
+                          </>
+                        )}
+                      </button>
+                      <div className="flex-1 space-y-1.5">
+                        {uploadingLogo && <p className="text-xs font-medium" style={{color:"var(--accent)"}}>Uploading?</p>}
+                        <input
+                          className={inputCls}
+                          value={profile.logoUrl}
+                          onChange={(e) => setProfile((p) => ({ ...p, logoUrl: e.target.value }))}
+                          placeholder="Or paste URL: https://example.com/logo.png"
                         />
+                        {profile.logoUrl && (
+                          <button type="button" onClick={() => setProfile(p => ({ ...p, logoUrl: "" }))}
+                            className="text-xs text-red-500 hover:text-red-700 font-semibold">
+                            Remove logo
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </Field>
                   <Field
-                    label="Login Page Illustration URL"
-                    hint="Custom image on the login screen. Leave blank for the default gradient."
+                    label="Login Page Illustration"
+                    hint="Custom image shown on the login screen. Leave blank for the default gradient."
                   >
-                    <div className="flex gap-2">
-                      <input
-                        className={inputCls}
-                        value={profile.loginImageUrl}
-                        onChange={(e) =>
-                          setProfile((p) => ({
-                            ...p,
-                            loginImageUrl: e.target.value,
-                          }))
-                        }
-                        placeholder="https://example.com/illustration.png"
-                      />
-                      {profile.loginImageUrl && (
-                        <button
-                          type="button"
-                          disabled={isSaving("clear-login")}
-                          onClick={clearLoginImage}
-                          className="px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 whitespace-nowrap shrink-0"
-                        >
-                          {isSaving("clear-login") ? "â€¦" : "Clear"}
-                        </button>
-                      )}
-                    </div>
-                    {profile.loginImageUrl && (
-                      <div
-                        className="mt-2 h-20 w-36 rounded-lg overflow-hidden"
-                        style={{
-                          border: "1px solid rgba(0,0,0,0.08)",
-                          background: "#F7F9FC",
-                        }}
+                    <input
+                      ref={loginImgFileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLoginImgUpload}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={uploadingLoginImg}
+                        onClick={() => loginImgFileRef.current?.click()}
+                        className="h-16 w-28 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-colors hover:border-blue-400 disabled:opacity-50 overflow-hidden shrink-0"
+                        style={{ borderColor: "rgba(0,0,0,0.15)", background: "#F7F9FC" }}
                       >
-                        <img
-                          src={profile.loginImageUrl}
-                          alt="Login preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) =>
-                            (e.currentTarget.style.display = "none")
-                          }
-                        />
+                        {profile.loginImageUrl ? (
+                          <img
+                            src={profile.loginImageUrl}
+                            alt="Login image"
+                            className="w-full h-full object-cover"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        ) : (
+                          <>
+                            <span className="text-lg text-slate-300">&#128247;</span>
+                            <span className="text-[10px] text-slate-400">Upload image</span>
+                          </>
+                        )}
+                      </button>
+                      <div className="flex-1 space-y-1.5">
+                        {uploadingLoginImg && <p className="text-xs font-medium" style={{color:"var(--accent)"}}>Uploading?</p>}
+                        <div className="flex gap-2">
+                          <input
+                            className={inputCls}
+                            value={profile.loginImageUrl}
+                            onChange={(e) => setProfile((p) => ({ ...p, loginImageUrl: e.target.value }))}
+                            placeholder="Or paste URL: https://example.com/image.png"
+                          />
+                          {profile.loginImageUrl && (
+                            <button
+                              type="button"
+                              disabled={isSaving("clear-login")}
+                              onClick={clearLoginImage}
+                              className="px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 whitespace-nowrap shrink-0"
+                            >
+                              {isSaving("clear-login") ? "?" : "Clear"}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </Field>
                   <div className="space-y-2">
                     <Toggle
@@ -828,7 +916,7 @@ export default function SettingsPage() {
                         setSettings((s) => ({ ...s, compactBillMode: v }))
                       }
                       label="Compact Bill Mode"
-                      hint="Removes blank lines and summary totals — for high-volume counters"
+                      hint="Removes blank lines and summary totals ? for high-volume counters"
                     />
                   </div>
                   <Field
@@ -902,7 +990,7 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <Field
                     label="Global Reward Rate"
-                    hint="Points earned per â‚¹1 spent. Customer-specific rates override this. (e.g. 0.1 = 1 pt per â‚¹10)"
+                    hint="Points earned per ???1 spent. Customer-specific rates override this. (e.g. 0.1 = 1 pt per ???10)"
                   >
                     <div className="flex items-center gap-2">
                       <input
@@ -921,7 +1009,7 @@ export default function SettingsPage() {
                         placeholder="0.1"
                       />
                       <span className="text-sm text-slate-500 whitespace-nowrap">
-                        pts / â‚¹1
+                        pts / ???1
                       </span>
                     </div>
                   </Field>
@@ -935,7 +1023,7 @@ export default function SettingsPage() {
                   />
                   <div className="grid grid-cols-2 gap-4">
                     <Field
-                      label="Default Credit Limit (â‚¹)"
+                      label="Default Credit Limit (???)"
                       hint="Applied when a new credit account is created"
                     >
                       <input
@@ -1011,7 +1099,7 @@ export default function SettingsPage() {
                       setSettings((s) => ({ ...s, enableCredit: v }))
                     }
                     label="Credit Account"
-                    hint="Customer buys on credit — requires an active CreditAccount"
+                    hint="Customer buys on credit ? requires an active CreditAccount"
                   />
                   <Toggle
                     checked={settings.enableSplit}
@@ -1025,6 +1113,43 @@ export default function SettingsPage() {
                 <SaveBtn
                   saving={isSaving("payments")}
                   onSave={() => saveS("payments")}
+                />
+              </SectionCard>
+
+              {/* 6b. POS Behaviour */}
+              <SectionCard
+                title="POS Behaviour"
+                subtitle="Configure quantity entry, discounts, and rounding at checkout"
+              >
+                <div className="space-y-2">
+                  <Toggle
+                    checked={settings.manualQtyEnabled}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, manualQtyEnabled: v }))
+                    }
+                    label="Manual Quantity Entry"
+                    hint="Replaces the +/- stepper with a free-text number input and unit dropdown at POS"
+                  />
+                  <Toggle
+                    checked={settings.discountEnabled}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, discountEnabled: v }))
+                    }
+                    label="Discount & Bill Discount"
+                    hint="Enables per-item discount rates and a bill-level discount override at checkout"
+                  />
+                  <Toggle
+                    checked={settings.roundUpEnabled}
+                    onChange={(v) =>
+                      setSettings((s) => ({ ...s, roundUpEnabled: v }))
+                    }
+                    label="Round Up Total"
+                    hint="Allows rounding the grand total to the nearest ?1 at checkout"
+                  />
+                </div>
+                <SaveBtn
+                  saving={isSaving("pos-behaviour")}
+                  onSave={() => saveS("pos-behaviour")}
                 />
               </SectionCard>
 
@@ -1087,7 +1212,7 @@ export default function SettingsPage() {
                   </div>
                   <Field
                     label="Thermal Header Text"
-                    hint={`First line on every receipt (default: "${profile.name || "My Store"}")`}
+                    hint={`First line on every receipt (default: "${profile.name || "Origin"}")`}
                   >
                     <input
                       className={inputCls}
@@ -1098,7 +1223,7 @@ export default function SettingsPage() {
                           thermalHeaderText: e.target.value,
                         }))
                       }
-                      placeholder={profile.name || "My Store"}
+                      placeholder={profile.name || "Origin"}
                     />
                   </Field>
                   <Toggle
@@ -1132,7 +1257,7 @@ export default function SettingsPage() {
                     onClick={() => saveS("thermal")}
                     className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98]"
                   >
-                    {isSaving("thermal") ? "Savingâ€¦" : "Save Changes"}
+                    {isSaving("thermal") ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </SectionCard>
@@ -1166,7 +1291,7 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <Field
                       label="Scanner Model / Name"
-                      hint="For your reference only — e.g. Zebra LS2208"
+                      hint="For your reference only ? e.g. Zebra LS2208"
                     >
                       <input
                         className={inputCls}
@@ -1243,7 +1368,7 @@ export default function SettingsPage() {
                       devices. When you scan a product, the decoded barcode
                       value is typed into the active field followed by the
                       suffix key (usually Enter). In POS billing, keep focus on
-                      the search box — the scanner fills it and the suffix
+                      the search box ? the scanner fills it and the suffix
                       triggers the add-to-cart action automatically.
                     </div>
                   </div>
@@ -1276,7 +1401,7 @@ export default function SettingsPage() {
                         onChange={handleTestScanInput}
                         onKeyDown={handleTestScanKeyDown}
                         className={`${inputCls} pl-9 font-mono`}
-                        placeholder="Click here and scan a barcodeâ€¦"
+                        placeholder="Click here and scan a barcode???"
                         autoComplete="off"
                         spellCheck={false}
                       />
@@ -1306,7 +1431,7 @@ export default function SettingsPage() {
                       <div className="mt-2 flex items-center gap-2 text-xs">
                         <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
                         <span className="text-green-400 font-semibold">
-                          Scanner working —
+                          Scanner working ?
                         </span>
                         <span className="text-slate-500">captured: </span>
                         <span className="font-mono text-slate-800">

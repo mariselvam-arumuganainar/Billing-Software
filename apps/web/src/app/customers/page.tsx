@@ -69,6 +69,7 @@ export default function CustomersPage() {
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [txLoading, setTxLoading]         = useState(false);
   const [search, setSearch]               = useState('');
+  const [creditFilter, setCreditFilter]      = useState(false);
   const [toasts, setToasts]               = useState<ToastEntry[]>([]);
 
   const [showReg, setShowReg]             = useState(false);
@@ -143,8 +144,10 @@ export default function CustomersPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return q ? customers.filter(c => c.name?.toLowerCase().includes(q) || c.mobileNumber.includes(q)) : customers;
-  }, [customers, search]);
+    let list = q ? customers.filter(c => c.name?.toLowerCase().includes(q) || c.mobileNumber.includes(q)) : customers;
+    if (creditFilter) list = list.filter(c => (c.creditAccount?.currentDue ?? 0) > 0);
+    return list;
+  }, [customers, search, creditFilter]);
 
   const history = useMemo(() =>
     selectedCust ? invoices.filter(i => i.customerId === selectedCust.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [],
@@ -221,6 +224,7 @@ export default function CustomersPage() {
       await apiClient.post('/credit/repay', { customerId: selectedCust.id, amount });
       setShowRepay(false); setRepayAmt(''); setRepayError('');
       await loadCustomers(selectedCust.id);
+      await loadCreditTxs(selectedCust.id);
       toast(`Repayment of ₹${amount.toFixed(2)} recorded`, 'success');
     } catch (err: any) { setRepayError(err.response?.data?.error ?? 'Repayment failed'); }
     finally { setSavingRepay(false); }
@@ -294,6 +298,20 @@ export default function CustomersPage() {
                 className="w-full px-3 py-2 bg-slate-100 rounded-xl focus:ring-2 focus:ring-teal-500 focus:bg-white text-sm outline-none transition-all" />
               {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs">×</button>}
             </div>
+          </div>
+          <div className="px-3 pb-2 shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => setCreditFilter(f => !f)}
+              className="text-xs font-bold px-3 py-1 rounded-full border transition-all"
+              style={creditFilter ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : { background: "transparent", color: "var(--text-secondary)", borderColor: "rgba(0,0,0,0.15)" }}
+            >
+              CREDIT DUE
+            </button>
+            {creditFilter && (
+              <span className="text-[10px] text-slate-400">
+                {filtered.length} customer{filtered.length !== 1 ? "s" : ""} with outstanding balance
+              </span>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
             {loading ? <ListSkeleton /> : filtered.length === 0 ? (

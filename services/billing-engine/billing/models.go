@@ -11,8 +11,9 @@ type CheckoutRequest struct {
 }
 
 type CheckoutItem struct {
-	ItemId   string  `json:"itemId"`
-	Quantity float64 `json:"quantity"`
+	ItemId       string  `json:"itemId"`
+	Quantity     float64 `json:"quantity"`
+	DiscountRate float64 `json:"discountRate"` // optional, defaults to 0
 }
 
 // Invoice represents the invoice record

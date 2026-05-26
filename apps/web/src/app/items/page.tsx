@@ -21,6 +21,7 @@ type Item = {
   gstRateDefault: number;
   hsnSac?: string | null;
   stockQty: number;
+  discountRate: number;
   isActive: boolean;
   imageUrl?: string | null;
 };
@@ -35,6 +36,7 @@ type ItemForm = {
   stockQty: string;
   hsnSac: string;
   imageUrl: string;
+  discountRate: string;
 };
 
 type BarcodeFilter = "all" | "registered" | "not_registered";
@@ -49,9 +51,24 @@ const EMPTY_FORM: ItemForm = {
   stockQty: "",
   hsnSac: "",
   imageUrl: "",
+  discountRate: "0",
 };
 
-const units = ["piece", "kg", "litre", "gram", "packet", "box", "dozen"];
+const UNIT_LIST: { value: string; label: string }[] = [
+  { value: "piece",  label: "Piece (pcs)" },
+  { value: "kg",     label: "Kilogram (kg)" },
+  { value: "gram",   label: "Gram (g)" },
+  { value: "litre",  label: "Litre (L)" },
+  { value: "packet", label: "Packet (pkt)" },
+  { value: "box",    label: "Box" },
+  { value: "dozen",  label: "Dozen" },
+  { value: "mg",     label: "Milligram (mg)" },
+  { value: "ml",     label: "Millilitre (ml)" },
+  { value: "m",      label: "Metre (m)" },
+  { value: "cm",     label: "Centimetre (cm)" },
+  { value: "ft",     label: "Foot (ft)" },
+];
+const units = UNIT_LIST.map(u => u.value);
 
 function getInitial(name: string) {
   const clean = name?.trim() || "?";
@@ -127,6 +144,7 @@ export default function ItemMasterPage() {
   const [search, setSearch] = useState("");
   const [barcodeFilter, setBarcodeFilter] = useState<BarcodeFilter>("all");
   const [loading, setLoading] = useState(true);
+  const [discountEnabled, setDiscountEnabled] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -143,8 +161,14 @@ export default function ItemMasterPage() {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get("/items");
-      setItems(res.data.items ?? []);
+      const [itemsRes, rulesRes] = await Promise.all([
+        apiClient.get("/items"),
+        apiClient.get("/settings/rules").catch(() => ({ data: {} })),
+      ]);
+      setItems(itemsRes.data.items ?? []);
+      if (rulesRes.data.settings) {
+        setDiscountEnabled(rulesRes.data.settings.discountEnabled ?? false);
+      }
     } catch (error) {
       console.error("Failed to fetch items", error);
       alert("Failed to load items.");
@@ -207,6 +231,7 @@ export default function ItemMasterPage() {
       stockQty: String(item.stockQty ?? 0),
       hsnSac: item.hsnSac ?? "",
       imageUrl: item.imageUrl ?? "",
+      discountRate: String(item.discountRate ?? 0),
     });
     setFormError("");
     setShowModal(true);
@@ -288,6 +313,7 @@ export default function ItemMasterPage() {
       stockQty: parseNumber(form.stockQty, 0),
       hsnSac: form.hsnSac.trim() || null,
       imageUrl: form.imageUrl || null,
+      discountRate: parseNumber(form.discountRate, 0),
     };
 
     try {
@@ -766,9 +792,9 @@ export default function ItemMasterPage() {
                         }
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white"
                       >
-                        {units.map((unit) => (
-                          <option key={unit} value={unit}>
-                            {unit}
+                        {UNIT_LIST.map((u) => (
+                          <option key={u.value} value={u.value}>
+                            {u.label}
                           </option>
                         ))}
                       </select>
@@ -849,6 +875,30 @@ export default function ItemMasterPage() {
                         placeholder="0808"
                       />
                     </div>
+
+                    {discountEnabled && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                          Default Discount %
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={form.discountRate}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              discountRate: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          placeholder="0"
+                        />
+                        <p className="mt-1 text-xs text-slate-400">Applied automatically at POS when discount is enabled.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -185,3 +185,129 @@ export const createSupplier = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// ── New endpoints for Change 8 ─────────────────────────────────────────────
+
+export const adjustStock = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { itemId, changeType, quantityChange, reason, date } = req.body as Record<string, unknown>;
+    if (!itemId || !changeType || quantityChange === undefined)
+      return res.status(400).json({ error: 'itemId, changeType and quantityChange are required' });
+
+    const item = await prisma.item.findFirst({ where: { id: itemId as string, tenantId } });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    const delta = changeType === 'STOCK_OUT' ? -(Number(quantityChange)) : Number(quantityChange);
+    const previousQty = Math.round(item.stockQty);
+    const newQty = Math.max(0, previousQty + delta);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.item.update({ where: { id: item.id }, data: { stockQty: newQty } });
+      await (tx as any).stockHistory.create({
+        data: {
+          tenantId,
+          itemId: item.id,
+          changeType: changeType as string,
+          quantityChange: delta,
+          previousQty,
+          newQty,
+          reason: (reason as string) || null,
+          date: date ? new Date(date as string) : new Date(),
+        },
+      });
+    });
+
+    return res.status(200).json({ message: 'Stock adjusted', newQty });
+  } catch (error: any) {
+    console.error('Adjust stock error:', error);
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+export const getStockPurchases = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+    const purchases = await (prisma as any).stockPurchase.findMany({
+      where: { tenantId },
+      include: { item: { select: { name: true, unit: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return res.status(200).json({ purchases });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+export const createStockPurchase = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { itemId, supplierName, qty, costPerUnit, date } = req.body as Record<string, unknown>;
+    if (!itemId || !supplierName || !qty || !costPerUnit)
+      return res.status(400).json({ error: 'itemId, supplierName, qty and costPerUnit are required' });
+
+    const qtyNum = Number(qty); const cpuNum = Number(costPerUnit);
+    const item = await prisma.item.findFirst({ where: { id: itemId as string, tenantId } });
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    const previousQty = Math.round(item.stockQty);
+    const newQty = previousQty + qtyNum;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.item.update({ where: { id: item.id }, data: { stockQty: newQty } });
+      await (tx as any).stockPurchase.create({
+        data: { tenantId, itemId: item.id, supplierName: supplierName as string, qty: qtyNum, costPerUnit: cpuNum, totalCost: qtyNum * cpuNum, date: date ? new Date(date as string) : new Date() },
+      });
+      await (tx as any).stockHistory.create({
+        data: { tenantId, itemId: item.id, changeType: 'PURCHASE', quantityChange: qtyNum, previousQty, newQty, reason: `Purchase from ${supplierName}`, date: date ? new Date(date as string) : new Date() },
+      });
+    });
+
+    return res.status(200).json({ message: 'Purchase recorded', newQty });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+export const getItemStockHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+    const itemId = req.params.itemId as string;
+    const history = await (prisma as any).stockHistory.findMany({
+      where: { tenantId, itemId },
+      orderBy: { date: 'desc' },
+      take: 50,
+    });
+    return res.status(200).json({ history });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+export const getStockStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const items = await prisma.item.findMany({
+      where: { tenantId, isActive: true },
+      select: { stockQty: true, price: true, lowStockThreshold: true },
+    });
+
+    const totalProducts = items.length;
+    const totalStockValue = items.reduce((s, i) => s + i.stockQty * i.price, 0);
+    const lowStockCount = items.filter(i => i.stockQty > 0 && i.stockQty <= (i.lowStockThreshold ?? 10)).length;
+    const outOfStockCount = items.filter(i => i.stockQty <= 0).length;
+
+    return res.status(200).json({ stats: { totalProducts, totalStockValue, lowStockCount, outOfStockCount } });
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};

@@ -2,6 +2,8 @@
 // is fully populated before any module-level code in auth.ts or authController.ts runs.
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import itemsRoutes from './routes/items';
@@ -47,6 +49,11 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/billing',   billingRoutes);
 app.use('/api/v1/reminders', remindersRoutes);
 app.use('/api/v1/stock',     stockRoutes);
+
+// Static file serving for uploads
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
 
 // Health check
 app.get('/health', (req, res) => {

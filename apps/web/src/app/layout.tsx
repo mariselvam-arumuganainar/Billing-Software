@@ -16,8 +16,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "My Store — Billing & Analytics",
-  description: "Retail billing, GST, rewards and inventory management",
+  title: "Origin - Billing & Analytics",
+  description: "Origin retail billing, GST, rewards and inventory management",
 };
 
 export default function RootLayout({

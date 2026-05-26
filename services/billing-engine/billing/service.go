@@ -71,8 +71,17 @@ func ProcessCheckout(ctx context.Context, tenantID string, req CheckoutRequest) 
 			return nil, fmt.Errorf("item not found or error: %w", err)
 		}
 
-		// Calculate line totals
-		lineSubtotal := price * reqItem.Quantity
+		// Apply per-line discount (0 means no discount — backward compatible)
+		discountRate := reqItem.DiscountRate
+		if discountRate < 0 {
+			discountRate = 0
+		}
+		if discountRate > 100 {
+			discountRate = 100
+		}
+
+		// Calculate line totals on discounted amount
+		lineSubtotal := price * reqItem.Quantity * (1.0 - discountRate/100.0)
 		lineTax := lineSubtotal * (gstRate / 100.0)
 		cgst := lineTax / 2.0
 		sgst := lineTax / 2.0
@@ -80,11 +89,11 @@ func ProcessCheckout(ctx context.Context, tenantID string, req CheckoutRequest) 
 		subtotal += lineSubtotal
 		taxTotal += lineTax
 
-		// Insert InvoiceLine
+		// Insert InvoiceLine (includes discountRate column)
 		_, err = tx.Exec(ctx, `
-			INSERT INTO "InvoiceLine" ("id", "invoiceId", "itemId", "qty", "unitPrice", "taxableValue", "cgst", "sgst", "igst")
-			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, 0)
-		`, invoiceID, reqItem.ItemId, reqItem.Quantity, price, lineSubtotal, cgst, sgst)
+			INSERT INTO "InvoiceLine" ("id", "invoiceId", "itemId", "qty", "unitPrice", "taxableValue", "cgst", "sgst", "igst", "discountRate")
+			VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, 0, $8)
+		`, invoiceID, reqItem.ItemId, reqItem.Quantity, price, lineSubtotal, cgst, sgst, discountRate)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert invoice line: %w", err)
 		}

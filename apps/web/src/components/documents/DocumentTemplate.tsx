@@ -23,6 +23,7 @@ export type DocInvoiceLine = {
   cgst: number;
   sgst: number;
   igst: number;
+  discountRate?: number;
   item: {
     name: string;
     sku?: string | null;
@@ -133,13 +134,14 @@ function InvoiceTemplate({
   const quote = getFooterQuote(docLang, invoice.invoiceSequence);
   const isTamil = docLang === 'TA';
 
-  const cgstTotal = invoice.lines.reduce((a, l) => a + l.cgst, 0);
-  const sgstTotal = invoice.lines.reduce((a, l) => a + l.sgst, 0);
-  const igstTotal = invoice.lines.reduce((a, l) => a + l.igst, 0);
-  const hasIgst   = igstTotal > 0;
+  const cgstTotal  = invoice.lines.reduce((a, l) => a + l.cgst, 0);
+  const sgstTotal  = invoice.lines.reduce((a, l) => a + l.sgst, 0);
+  const igstTotal  = invoice.lines.reduce((a, l) => a + l.igst, 0);
+  const hasIgst    = igstTotal > 0;
+  const hasDiscount = invoice.lines.some(l => (l.discountRate ?? 0) > 0);
 
-  // intrastate: 9 cols; interstate: 8 cols
-  const colCount = hasIgst ? 8 : 9;
+  // intrastate: 9 cols; interstate: 8 cols; +1 if discount column shown
+  const colCount = (hasIgst ? 8 : 9) + (hasDiscount ? 1 : 0);
 
   return (
     <div className={`bg-white text-slate-900 ${isTamil ? 'font-tamil' : 'font-sans'} text-xs p-8`}>
@@ -239,6 +241,7 @@ function InvoiceTemplate({
             <th className="text-center px-2 py-2.5">QTY</th>
             <th className="text-center px-2 py-2.5">UNIT</th>
             <th className="text-right px-2 py-2.5">RATE (₹)</th>
+            {hasDiscount && <th className="text-right px-2 py-2.5">DISC %</th>}
             <th className="text-right px-2 py-2.5">TAXABLE (₹)</th>
             <th className="text-center px-2 py-2.5">GST %</th>
             {hasIgst ? (
@@ -277,6 +280,11 @@ function InvoiceTemplate({
                 <td className="px-2 py-2 text-center font-bold">{line.qty}</td>
                 <td className="px-2 py-2 text-center text-slate-600">{line.item.unit}</td>
                 <td className="px-2 py-2 text-right">₹{line.unitPrice.toFixed(2)}</td>
+                {hasDiscount && (
+                  <td className="px-2 py-2 text-right text-rose-600">
+                    {(line.discountRate ?? 0) > 0 ? `${line.discountRate}%` : '—'}
+                  </td>
+                )}
                 <td className="px-2 py-2 text-right">₹{line.taxableValue.toFixed(2)}</td>
                 <td className="px-2 py-2 text-center">{gstRate > 0 ? `${gstRate}%` : '—'}</td>
                 {hasIgst ? (
@@ -294,7 +302,7 @@ function InvoiceTemplate({
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-slate-800 bg-slate-100 font-bold text-[11px]">
-            <td colSpan={4} className="px-3 py-2 text-right text-slate-600">TOTAL</td>
+            <td colSpan={hasDiscount ? 5 : 4} className="px-3 py-2 text-right text-slate-600">TOTAL</td>
             <td className="px-2 py-2 text-right">₹{invoice.subtotal.toFixed(2)}</td>
             <td className="px-2 py-2 text-center text-slate-400">—</td>
             {hasIgst ? (
@@ -541,6 +549,11 @@ function BillTemplate({
                 <span className="w-8 text-right">{line.qty}</span>
                 <span className="w-16 text-right font-bold">₹{lineTotal.toFixed(2)}</span>
               </div>
+              {(line.discountRate ?? 0) > 0 && (
+                <div className="text-[9px] text-rose-500 pl-5">
+                  Discount: {line.discountRate}%
+                </div>
+              )}
               {gstRate > 0 && (
                 <div className="text-[9px] text-slate-400 pl-5">
                   {hasIgst

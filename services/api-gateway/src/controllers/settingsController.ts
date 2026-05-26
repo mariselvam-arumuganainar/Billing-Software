@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { prisma } from 'database';
 import { AuthRequest } from '../middleware/auth';
+import fs from 'fs';
+import path from 'path';
 
 export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -152,6 +154,9 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
       enableUpi: bool(b.enableUpi, true),
       enableCredit: bool(b.enableCredit, true),
       enableSplit: bool(b.enableSplit, true),
+      manualQtyEnabled: bool(b.manualQtyEnabled, false),
+      discountEnabled: bool(b.discountEnabled, false),
+      roundUpEnabled: bool(b.roundUpEnabled, false),
     };
 
     const settings = await prisma.tenantSettings.upsert({
@@ -164,5 +169,40 @@ export const updateSettings = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Update settings error:', error);
     return res.status(500).json({ error: 'Internal server error', details: error?.message });
+  }
+};
+
+export const uploadLogo = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const b = req.body as Record<string, unknown>;
+    const fieldName = typeof b.fieldName === 'string' ? b.fieldName : 'logo';
+    const dataUrl = typeof b.dataUrl === 'string' ? b.dataUrl : '';
+
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Invalid image data' });
+    }
+
+    const matches = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Invalid data URL format' });
+
+    const ext = (matches[1] ?? 'png') === 'jpeg' ? 'jpg' : (matches[1] ?? 'png');
+    const base64Data = matches[2] ?? '';
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const filename = `${tenantId}-${fieldName}-${Date.now()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, buffer);
+
+    const url = `/uploads/${filename}`;
+    return res.status(200).json({ url });
+  } catch (error: any) {
+    console.error('Upload logo error:', error);
+    return res.status(500).json({ error: 'Upload failed', details: error?.message });
   }
 };

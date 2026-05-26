@@ -17,12 +17,14 @@ type Item = {
   gstRateDefault: number;
   hsnSac?: string | null;
   stockQty: number;
+  discountRate: number;
   isActive?: boolean;
   imageUrl?: string | null;
 };
 
 type CartItem = Item & {
   quantity: number;
+  lineDiscountRate: number; // effective discount % for this line
   lineSubtotal: number;
   lineCgst: number;
   lineSgst: number;
@@ -81,6 +83,7 @@ function buildDocData(snap: CheckoutSnapshot): DocumentData {
       cgst: ci.lineCgst,
       sgst: ci.lineSgst,
       igst: 0,
+      discountRate: ci.lineDiscountRate ?? 0,
       item: {
         name: ci.name,
         sku: ci.sku ?? null,
@@ -109,6 +112,23 @@ function emptyBill(): BillState {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
+
+// ── Unit list ──────────────────────────────────────────────────────────────
+const UNIT_LIST = [
+  { value: "piece",  label: "Piece (pcs)" },
+  { value: "kg",     label: "Kilogram (kg)" },
+  { value: "gram",   label: "Gram (g)" },
+  { value: "litre",  label: "Litre (L)" },
+  { value: "packet", label: "Packet (pkt)" },
+  { value: "box",    label: "Box" },
+  { value: "dozen",  label: "Dozen" },
+  { value: "mg",     label: "Milligram (mg)" },
+  { value: "ml",     label: "Millilitre (ml)" },
+  { value: "m",      label: "Metre (m)" },
+  { value: "cm",     label: "Centimetre (cm)" },
+  { value: "ft",     label: "Foot (ft)" },
+];
+
 const SPLIT_MODES: ('CASH' | 'CARD' | 'UPI')[] = ['CASH', 'CARD', 'UPI'];
 const PAYMENT_MODES: PaymentMode[] = ['CASH', 'CARD', 'UPI', 'CREDIT', 'SPLIT'];
 const AVATAR_COLORS = [
@@ -126,13 +146,16 @@ function initial(name: string | null): string {
   return (name ?? 'A')[0].toUpperCase();
 }
 
-function buildCartItem(base: Item, qty: number): CartItem {
-  const lineSubtotal = base.price * qty;
+function buildCartItem(base: Item, qty: number, overrideDiscountPct?: number): CartItem {
+  const effectiveDiscount = overrideDiscountPct !== undefined ? overrideDiscountPct : (base.discountRate ?? 0);
+  const grossSubtotal = base.price * qty;
+  const lineSubtotal = grossSubtotal * (1 - effectiveDiscount / 100);
   const lineGst = (lineSubtotal * base.gstRateDefault) / 100;
   const half = lineGst / 2;
   return {
     ...base,
     quantity: qty,
+    lineDiscountRate: effectiveDiscount,
     lineSubtotal,
     lineCgst: half,
     lineSgst: half,
@@ -229,12 +252,22 @@ function CartRow({
   item,
   onQtyChange,
   onRemove,
+  manualQtyEnabled,
+  manualQtyValue,
+  manualUnitValue,
+  onManualQtyChange,
+  onManualUnitChange,
 }: {
   item: CartItem;
   onQtyChange: (id: string, delta: number, isKg: boolean) => void;
   onRemove: (id: string) => void;
+  manualQtyEnabled: boolean;
+  manualQtyValue: string;
+  manualUnitValue: string;
+  onManualQtyChange: (id: string, val: string) => void;
+  onManualUnitChange: (id: string, val: string) => void;
 }) {
-  const atLimit = item.quantity >= item.stockQty;
+  const atLimit = !manualQtyEnabled && item.quantity >= item.stockQty;
   const isKg = item.unit.toUpperCase() === 'KG';
   const step = isKg ? 0.5 : 1;
   return (
@@ -255,25 +288,48 @@ function CartRow({
         )}
       </div>
 
-      {/* Qty stepper */}
-      <div className="flex items-center rounded-lg bg-slate-100 shrink-0">
-        <button
-          onClick={() => onQtyChange(item.id, -step, isKg)}
-          className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-600 font-bold rounded-md transition-colors"
-        >
-          &#8722;
-        </button>
-        <span className="w-8 text-center font-black text-slate-800">
-          {isKg ? item.quantity.toFixed(1) : item.quantity}
-        </span>
-        <button
-          onClick={() => onQtyChange(item.id, step, isKg)}
-          disabled={atLimit}
-          className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-teal-600 font-bold rounded-md transition-colors disabled:opacity-30"
-        >
-          +
-        </button>
-      </div>
+      {/* Qty stepper or manual input */}
+      {manualQtyEnabled ? (
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min="0.01"
+            step="any"
+            value={manualQtyValue}
+            onChange={e => onManualQtyChange(item.id, e.target.value)}
+            className="w-16 text-center text-xs font-bold border border-slate-300 rounded-lg px-1 py-1 bg-white outline-none focus:border-violet-400"
+            placeholder="Qty"
+          />
+          <select
+            value={manualUnitValue}
+            onChange={e => onManualUnitChange(item.id, e.target.value)}
+            className="text-xs border border-slate-300 rounded-lg px-1 py-1 bg-white outline-none focus:border-violet-400"
+          >
+            {UNIT_LIST.map(u => (
+              <option key={u.value} value={u.value}>{u.label}</option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="flex items-center rounded-lg bg-slate-100 shrink-0">
+          <button
+            onClick={() => onQtyChange(item.id, -step, isKg)}
+            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-red-600 font-bold rounded-md transition-colors"
+          >
+            &#8722;
+          </button>
+          <span className="w-8 text-center font-black text-slate-800">
+            {isKg ? item.quantity.toFixed(1) : item.quantity}
+          </span>
+          <button
+            onClick={() => onQtyChange(item.id, step, isKg)}
+            disabled={atLimit}
+            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-teal-600 font-bold rounded-md transition-colors disabled:opacity-30"
+          >
+            +
+          </button>
+        </div>
+      )}
 
       {/* Line total */}
       <div className="text-right shrink-0 w-[72px]">
@@ -340,6 +396,21 @@ export default function POSPage() {
   const [docLang, setDocLang] = useState<DocLang>('EN');
   const [checkoutSnapshot, setCheckoutSnapshot] = useState<CheckoutSnapshot | null>(null);
 
+  // ── POS config settings ──
+  const [posSettings, setPosSettings] = useState({
+    manualQtyEnabled: false,
+    discountEnabled: false,
+    roundUpEnabled: false,
+    thermalPrintEnabled: true,
+  });
+  const [billDiscount, setBillDiscount] = useState('');
+  const [roundUp, setRoundUp] = useState(false);
+  const [customTotal, setCustomTotal] = useState('');
+  const [manualQtyValues, setManualQtyValues] = useState<Record<string, string>>({});
+  const [manualUnitValues, setManualUnitValues] = useState<Record<string, string>>({});
+  const printRef = useRef<HTMLDivElement | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const customerSearchRef = useRef<HTMLInputElement | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -357,14 +428,16 @@ export default function POSPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [itemsRes, custsRes, profileRes] = await Promise.all([
+      const [itemsRes, custsRes, profileRes, rulesRes] = await Promise.all([
         apiClient.get('/items'),
         apiClient.get('/customers'),
         apiClient.get('/settings/profile').catch(() => ({ data: {} })),
+        apiClient.get('/settings/rules').catch(() => ({ data: {} })),
       ]);
       setCatalogItems(itemsRes.data.items ?? []);
       setCustomers(custsRes.data.customers ?? []);
       if (profileRes.data.profile) setStoreProfile(profileRes.data.profile);
+      if (rulesRes.data.settings) { const s = rulesRes.data.settings; setPosSettings({ manualQtyEnabled: s.manualQtyEnabled ?? false, discountEnabled: s.discountEnabled ?? false, roundUpEnabled: s.roundUpEnabled ?? false, thermalPrintEnabled: s.thermalPrintEnabled ?? true }); }
     } catch {
       showToast('Failed to load POS data — please refresh the page.', 'error');
     } finally {
@@ -408,7 +481,16 @@ export default function POSPage() {
     return Math.min(linkedCustomer.totalRewardPoints, subtotal + taxTotal);
   }, [linkedCustomer, redeemPoints, subtotal, taxTotal]);
 
-  const grandTotal  = useMemo(() => Math.max(0, subtotal + taxTotal - maxRedeemable), [subtotal, taxTotal, maxRedeemable]);
+  const billDiscountPct = parseFloat(billDiscount) || 0;
+  const calcGrandTotal = useMemo(() => {
+    const afterReward = Math.max(0, subtotal + taxTotal - maxRedeemable);
+    const afterDiscount = posSettings.discountEnabled && billDiscountPct > 0
+      ? afterReward * (1 - billDiscountPct / 100)
+      : afterReward;
+    if (posSettings.roundUpEnabled && roundUp) return Math.ceil(afterDiscount);
+    return afterDiscount;
+  }, [subtotal, taxTotal, maxRedeemable, billDiscountPct, posSettings, roundUp]);
+  const grandTotal = customTotal !== '' ? (parseFloat(customTotal) || 0) : calcGrandTotal;
   const pointsToEarn = useMemo(() => subtotal * EARN_RATE, [subtotal]);
 
   // ── Derived: credit ──
@@ -454,8 +536,11 @@ export default function POSPage() {
       const existing = prev.find(e => e.id === item.id);
       if (existing) {
         const newQty = Math.min(item.stockQty, existing.quantity + 1);
+        setManualQtyValues(m => ({ ...m, [item.id]: String(newQty) }));
         return prev.map(e => e.id === item.id ? buildCartItem(e, newQty) : e);
       }
+      setManualQtyValues(m => ({ ...m, [item.id]: '1' }));
+      setManualUnitValues(m => ({ ...m, [item.id]: item.unit }));
       return [...prev, buildCartItem(item, 1)];
     });
   }, []);
@@ -469,6 +554,28 @@ export default function POSPage() {
     }));
   }, []);
 
+
+  const handleManualQtyChange = useCallback((id: string, val: string) => {
+    setManualQtyValues(prev => ({ ...prev, [id]: val }));
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0) {
+      setCart(prev => prev.map(item => item.id === id ? buildCartItem(item, num) : item));
+    }
+  }, []);
+
+  const handleManualUnitChange = useCallback((id: string, val: string) => {
+    setManualUnitValues(prev => ({ ...prev, [id]: val }));
+    setCart(prev => prev.map(item => item.id === id ? { ...item, unit: val } : item));
+  }, []);
+
+  // Rebuild cart line totals when bill-level discount changes
+  useEffect(() => {
+    if (!posSettings.discountEnabled) return;
+    setCart(prev => prev.map(item =>
+      buildCartItem(item, item.quantity, billDiscountPct > 0 ? billDiscountPct : item.discountRate)
+    ));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billDiscountPct, posSettings.discountEnabled]);
   const removeFromCart = useCallback((id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
   }, []);
@@ -512,6 +619,50 @@ export default function POSPage() {
   }, [activeBill, cart, linkedCustomer, redeemPoints, paymentMode, cashReceived, cardRef, upiRef, splitAmounts, bills]);
 
   // ── Checkout ──
+  // ── Thermal print handler (Change 4) ──
+  const handleThermalPrint = useCallback(() => {
+    document.body.classList.add('thermal-print-mode');
+    window.print();
+    const cleanup = () => {
+      document.body.classList.remove('thermal-print-mode');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+  }, []);
+
+  // ── PDF download handler (Change 5) ──
+  const handleDownloadPdf = useCallback(async () => {
+    const el = document.getElementById('document-template-wrapper');
+    if (!el || !successInvoice) return;
+    setDownloadingPdf(true);
+    try {
+      // Load html2canvas + jsPDF from CDN at runtime (no npm dep required)
+      const loadScript = (src: string) => new Promise<void>((res, rej) => {
+        if (document.querySelector(`script[src="${src}"]`)) { res(); return; }
+        const s = document.createElement('script'); s.src = src; s.onload = () => res(); s.onerror = rej;
+        document.head.appendChild(s);
+      });
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const html2canvas = (window as any).html2canvas;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { jsPDF } = (window as any).jspdf;
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const isB = docType === 'BILL';
+      const w = isB ? 80 : 210;
+      const h = isB ? canvas.height * 80 / canvas.width : 297;
+      const pdf = new jsPDF({ unit: 'mm', format: isB ? [w, h] : 'a4', orientation: 'portrait' });
+      pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      pdf.save(`${successInvoice.invoiceSequence}.pdf`);
+    } catch (err) {
+      showToast('PDF generation failed', 'error');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [successInvoice, docType, showToast]);
+
   const handleCheckout = useCallback(async () => {
     if (checkoutBlocked) { showToast(checkoutBlocked, 'error'); return; }
     try {
@@ -520,7 +671,14 @@ export default function POSPage() {
         customerId: linkedCustomer?.id ?? null,
         paymentMode,
         redeemPoints,
-        items: cart.map(item => ({ itemId: item.id, quantity: item.quantity })),
+        items: cart.map(item => ({
+          itemId: item.id,
+          quantity: item.quantity,
+          // bill-level discount overrides item-level when set
+          discountRate: (posSettings.discountEnabled && billDiscountPct > 0)
+            ? billDiscountPct
+            : (item.lineDiscountRate ?? 0),
+        })),
       };
       const res = await apiClient.post('/billing/checkout', payload);
       const inv: InvoiceResult = res.data.invoice;
@@ -905,7 +1063,17 @@ export default function POSPage() {
                     </button>
                   </div>
                   {cart.map(item => (
-                    <CartRow key={item.id} item={item} onQtyChange={updateQty} onRemove={removeFromCart} />
+                    <CartRow
+                      key={item.id}
+                      item={item}
+                      onQtyChange={updateQty}
+                      onRemove={removeFromCart}
+                      manualQtyEnabled={posSettings.manualQtyEnabled}
+                      manualQtyValue={manualQtyValues[item.id] ?? String(item.quantity)}
+                      manualUnitValue={manualUnitValues[item.id] ?? item.unit}
+                      onManualQtyChange={handleManualQtyChange}
+                      onManualUnitChange={handleManualUnitChange}
+                    />
                   ))}
                 </>
               )}
@@ -938,10 +1106,43 @@ export default function POSPage() {
                         <span>&#8722; &#8377;{maxRedeemable.toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between font-black text-slate-900 border-t border-slate-200 pt-2 mt-1 text-sm">
+                    <div className="flex justify-between font-black text-slate-900 border-t border-slate-200 pt-2 mt-1 text-sm items-center">
                       <span>Grand Total</span>
-                      <span>&#8377;{grandTotal.toFixed(2)}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">&#8377;</span>
+                        <input type="number" min="0" step="0.01"
+                          value={customTotal !== '' ? customTotal : calcGrandTotal.toFixed(2)}
+                          onChange={e => setCustomTotal(e.target.value)}
+                          className="w-24 text-right font-black text-slate-900 bg-transparent border-b border-slate-300 focus:border-teal-500 outline-none text-sm"
+                        />
+                        {customTotal !== '' && (
+                          <button onClick={() => setCustomTotal('')} className="text-[10px] text-teal-600 hover:underline ml-1">reset</button>
+                        )}
+                      </div>
                     </div>
+                    {posSettings.discountEnabled && cart.length > 0 && (
+                      <div className="flex justify-between text-slate-500 items-center gap-2 pt-1">
+                        <span>Bill Discount %</span>
+                        <div className="flex items-center gap-1">
+                          <input type="number" min="0" max="100" step="0.5"
+                            value={billDiscount}
+                            onChange={e => { setBillDiscount(e.target.value); setCustomTotal(''); }}
+                            placeholder="0"
+                            className="w-14 px-1 py-0.5 border border-slate-300 rounded text-xs text-right focus:ring-1 focus:ring-teal-500 outline-none"
+                          />
+                          <span className="text-slate-400 text-[10px]">%</span>
+                        </div>
+                      </div>
+                    )}
+                    {posSettings.roundUpEnabled && cart.length > 0 && (
+                      <label className="flex justify-between text-slate-500 items-center cursor-pointer pt-1">
+                        <span>Round Up Total</span>
+                        <input type="checkbox" checked={roundUp}
+                          onChange={e => { setRoundUp(e.target.checked); setCustomTotal(''); }}
+                          className="w-3.5 h-3.5 accent-teal-600"
+                        />
+                      </label>
+                    )}
                     {linkedCustomer && pointsToEarn > 0 && (
                       <div className="flex justify-between text-emerald-600 text-[11px]">
                         <span>Est. points to earn</span>
@@ -1272,7 +1473,7 @@ export default function POSPage() {
 
               {/* RIGHT: live document preview */}
               <div className="flex-1 overflow-y-auto bg-slate-200 p-5 flex justify-center">
-                <div className={`w-full bg-white shadow-lg rounded-xl overflow-hidden border border-slate-300 ${
+                <div id="document-template-wrapper" className={`w-full bg-white shadow-lg rounded-xl overflow-hidden border border-slate-300 ${
                   docType === 'BILL' ? 'max-w-xs' : 'max-w-2xl'
                 }`}>
                   <DocumentTemplate

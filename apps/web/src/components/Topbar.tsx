@@ -211,7 +211,7 @@ const NAV = [
 type Props = { printHidden?: boolean };
 
 export default function Topbar({ printHidden = false }: Props) {
-  const [storeName, setStoreName] = useState("My Store");
+  const [storeName, setStoreName] = useState("Origin");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [showLogout, setShowLogout] = useState(false);
   const pathname = usePathname();
