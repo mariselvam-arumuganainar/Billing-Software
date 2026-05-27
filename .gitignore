@@ -38,8 +38,10 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Super Admin portal lives separately at D:\Projects\Billing Software\Admin
-apps/admin/
+# Junk / AI tool files
+ai_codebase.txt
+codebase.py
+ruvector.db
 
 # Misc
 *.pem

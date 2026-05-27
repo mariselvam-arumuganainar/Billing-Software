@@ -35,7 +35,7 @@ services:
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       BILLING_ENGINE_URL: http://billing-engine:8082
       BILLING_INTERNAL_KEY: ${BILLING_INTERNAL_KEY}
-      ALLOWED_ORIGINS: https://origindemo-billing.in,https://www.origindemo-billing.in
+      ALLOWED_ORIGINS: https://origindemo-billing.in,https://www.origindemo-billing.in,https://superadmin.origindemo-billing.in
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +70,20 @@ services:
     depends_on:
       - api-gateway
       - billing-engine
+
+  # ── Super Admin Portal ────────────────────────────────────────────────────
+  admin:
+    build:
+      context: apps/admin
+      args:
+        NEXT_PUBLIC_API_GATEWAY_URL: https://api.origindemo-billing.in/api/v1
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - api-gateway
 
 volumes:
   postgres_data:
