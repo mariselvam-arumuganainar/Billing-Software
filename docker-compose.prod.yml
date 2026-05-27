@@ -33,6 +33,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      SUPER_ADMIN_USERNAME_2: ${SUPER_ADMIN_USERNAME_2}
+      SUPER_ADMIN_PASSWORD_2: ${SUPER_ADMIN_PASSWORD_2}
       BILLING_ENGINE_URL: http://billing-engine:8082
       BILLING_INTERNAL_KEY: ${BILLING_INTERNAL_KEY}
       ALLOWED_ORIGINS: https://origindemo-billing.in,https://www.origindemo-billing.in,https://superadmin.origindemo-billing.in
