@@ -13,6 +13,16 @@ if (!SA_USERNAME || !SA_PASSWORD) {
   process.exit(1);
 }
 
+// Optional second super admin account
+const SA_USERNAME_2 = process.env.SUPER_ADMIN_USERNAME_2;
+const SA_PASSWORD_2 = process.env.SUPER_ADMIN_PASSWORD_2;
+
+const isSuperAdmin = (username: string, password: string): boolean => {
+  if (username === SA_USERNAME && password === SA_PASSWORD) return true;
+  if (SA_USERNAME_2 && SA_PASSWORD_2 && username === SA_USERNAME_2 && password === SA_PASSWORD_2) return true;
+  return false;
+};
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { mobileNumber, password } = req.body;
@@ -20,7 +30,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing credentials' });
     }
 
-    if (mobileNumber === SA_USERNAME && password === SA_PASSWORD) {
+    if (isSuperAdmin(mobileNumber, password)) {
       const token = jwt.sign(
         { tenantId: 'super-admin', role: 'SUPER_ADMIN' },
         JWT_SECRET!,
@@ -56,7 +66,7 @@ export const getLoginConfig = async (req: Request, res: Response) => {
   try {
     const { query } = req.query;
     if (!query || typeof query !== 'string') return res.status(200).json({ loginImageUrl: null });
-    if (query === SA_USERNAME) return res.status(200).json({ loginImageUrl: null });
+    if (query === SA_USERNAME || query === SA_USERNAME_2) return res.status(200).json({ loginImageUrl: null });
 
     const credential = await prisma.tenantCredential.findUnique({
       where: { mobileNumber: query },
